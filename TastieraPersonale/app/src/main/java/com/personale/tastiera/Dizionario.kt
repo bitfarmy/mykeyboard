@@ -30,7 +30,9 @@ class Dizionario private constructor(private val ctx: Context) {
         }
 
         /** Sotto questa soglia il dizionario è "base": correggiamo solo gli accenti. */
-        const val PAROLE_PER_CORREZIONE_COMPLETA = 10_000
+        // Con 6.000+ parole comuni reali (ordinate per frequenza), gli errori di battitura
+        // a distanza 1 su parole di almeno 4 lettere restano un rischio basso di falsi positivi.
+        const val PAROLE_PER_CORREZIONE_COMPLETA = 6_000
 
         private const val BONUS_UTENTE = 150
         private val SEGNI_DIACRITICI = Regex("\\p{Mn}+")
