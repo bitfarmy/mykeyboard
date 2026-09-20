@@ -99,6 +99,11 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
     private val pennelloTesto = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
     private val pennelloAlternativa = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.RIGHT }
 
+    // --- NUOVO: pennello per la linea separatrice ---
+    private val pennelloLinea = Paint().apply {
+        strokeWidth = dp(1f)
+    }
+
     private val gestore = Handler(Looper.getMainLooper())
     private var posizionati: List<Posizionato> = emptyList()
     private var tastoPremuto: Posizionato? = null
@@ -167,10 +172,28 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
         posizionati = lista
     }
 
+    // --- NUOVO: la prima riga è quella dei numeri? (tutte cifre singole) ---
+    private fun primaRigaSonoNumeri(): Boolean {
+        val riga = righe.firstOrNull() ?: return false
+        return riga.isNotEmpty() && riga.all {
+            it.codice == Codici.TESTO && it.etichetta.length == 1 && it.etichetta[0] in '0'..'9'
+        }
+    }
+
     // ---------- Disegno ----------
 
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(tema.sfondo)
+
+        // --- NUOVO: linea separatrice sotto la riga dei numeri ---
+        if (primaRigaSonoNumeri()) {
+            val y = margineVerticale + dp(altezzaTastoDp)
+            pennelloLinea.color = tema.testoSecondario
+            pennelloLinea.alpha = 60 // leggera, quasi impercettibile
+            canvas.drawLine(margineOrizzontale, y, width - margineOrizzontale, y, pennelloLinea)
+            pennelloLinea.alpha = 255 // ripristina per i prossimi usi
+        }
+
         val h = dp(altezzaTastoDp) - spazioRighe
 
         for (p in posizionati) {
@@ -346,3 +369,4 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
         popup = null
     }
 }
+
