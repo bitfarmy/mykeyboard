@@ -52,6 +52,7 @@ object Layout {
     )
 
     val lettere: List<List<Tasto>> = listOf(
+        riga("1 2 3 4 5 6 7 8 9 0"),
         riga("q w e r t y u i o p"),
         listOf(vuoto) + riga("a s d f g h j k l") + vuoto,
         listOf(Tasto("⇧", Codici.SHIFT, 1.5f)) + riga("z x c v b n m") + Tasto("⌫", Codici.CANC, 1.5f),
