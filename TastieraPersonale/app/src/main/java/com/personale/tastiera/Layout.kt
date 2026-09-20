@@ -28,13 +28,13 @@ object Layout {
 
     // Tieni premuto un tasto per scegliere una variante. Modifica liberamente!
     private val ALTERNATIVE = mapOf(
-        "q" to "1", "w" to "2", "e" to "3 è é", "r" to "4", "t" to "5",
-        "y" to "6", "u" to "7 ù ú", "i" to "8 ì í", "o" to "9 ò ó", "p" to "0",
+        "e" to "è é", "u" to "ù ú", "i" to "ì í", "o" to "ò ó",
         "a" to "à á", "c" to "ç", "n" to "ñ",
         "." to "? ! ; : …", "," to "' \"",
         "-" to "_ – —", "'" to "‘ ’", "\"" to "« » “ ”",
         "€" to "\$ £ ¥", "?" to "¿", "!" to "¡", "%" to "‰",
     )
+
 
     /** Crea una riga da una stringa con i tasti separati da spazi. */
     private fun riga(tasti: String): List<Tasto> =
