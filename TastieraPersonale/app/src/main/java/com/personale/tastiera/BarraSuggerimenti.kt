@@ -16,7 +16,7 @@ enum class TipoSuggerimento { SCORCIATOIA, CORREZIONE, PAROLA }
 data class Suggerimento(val testo: String, val daSostituire: String, val tipo: TipoSuggerimento)
 
 /**
- * Barra sopra la tastiera: tre suggerimenti, poi i tasti rapidi ⇧ , . e l'ingranaggio.
+ * Barra sopra la tastiera: tre suggerimenti, poi i tasti rapidi ⇧ , ' . e l'ingranaggio.
  */
 @SuppressLint("ViewConstructor")
 class BarraSuggerimenti(
