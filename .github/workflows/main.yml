@@ -22,6 +22,13 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
+      - name: Scarica il dizionario completo
+        run: |
+          curl -fsSL -o /tmp/it_full.txt https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2016/it/it_full.txt \
+            && head -n 60000 /tmp/it_full.txt > app/src/main/assets/parole_it.txt \
+            && echo "Dizionario scaricato: $(wc -l < app/src/main/assets/parole_it.txt) parole" \
+            || echo "Download non riuscito: uso il dizionario incluso"
+
       - name: Compila la tastiera
         run: gradle assembleDebug
 
