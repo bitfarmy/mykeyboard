@@ -1,0 +1,56 @@
+# Parole aggiunte a mano, con priorità alta (le prime righe contano di più).
+# Una riga che inizia con "-" TOGLIE la parola dal dizionario: serve per le forme sbagliate
+# molto comuni nei sottotitoli (perche, piu, citta...), che altrimenti impedirebbero di
+# correggere gli accenti. Aggiungi pure le tue parole: una o più per riga.
+
+# --- Forme con apostrofo (in ordine di uso: le prime vengono proposte per prime) ---
+c'è l'ho po' c'era l'ha d'accordo l'altro l'altra com'è dov'è cos'è un'altra l'hai quest'anno
+l'anno c'erano l'ultimo l'ultima l'idea l'ora l'uomo l'unico l'unica l'amore l'acqua l'inizio
+all'improvviso nient'altro tutt'altro d'altronde d'ora l'abbiamo l'hanno l'avevo l'avevi l'aveva
+l'avete c'ho c'hai c'hanno c'avevo un'amica un'idea un'ora un'occhiata quest'ultimo quest'ultima
+gliel'ho gliel'hai gliel'ha m'hai m'ha t'ho t'amo s'è d'estate d'inverno l'estate l'inverno
+dell'anno all'inizio nell'altro sull'altro dall'altra quell'anno quell'uomo
+va' fa' sta' da' di' mo' be'
+
+# --- Accenti corretti ---
+perché poiché affinché benché finché nonché purché cosicché sicché anziché né sé sì lì là già giù
+più può ciò però perciò cioè così laggiù lassù quaggiù quassù ventitré trentatré
+città università libertà verità novità età attività possibilità qualità realtà società felicità
+difficoltà opportunità comunità identità responsabilità personalità priorità capacità curiosità
+velocità umanità eternità facoltà autorità abilità necessità quantità proprietà lealtà oscurità
+celebrità pietà maestà metà caffè tè lunedì martedì mercoledì giovedì venerdì papà gesù virtù
+gioventù tribù menù
+sarà farà andrà avrà dirà darà potrà vorrà dovrà verrà starà saprà vedrà tornerà arriverà
+succederà cambierà diventerà servirà resterà rimarrà lascerà scoprirà capirà parlerà penserà
+riuscirà uscirà finirà partirà chiamerà scriverà
+sarò dirò farò avrò potrò dovrò verrò starò andrò darò vedrò saprò tornerò troverò proverò
+lascerò cercherò aiuterò occuperò penserò manderò resterò permetterò riuscirò morirò prenderò
+chiederò scriverò chiamerò mangerò arriverò partirò dormirò uscirò capirò finirò
+andò arrivò tornò parlò morì capì finì uscì partì sentì dormì sparì
+
+# --- Parole di tutti i giorni (telefono, app, messaggi) ---
+impostazioni impostazione apostrofo apostrofi tastiera tastiere notifica notifiche applicazione
+applicazioni app schermo schermata batteria caricatore aggiornamento aggiornamenti aggiornare
+scaricare scaricato installare installato disinstallare account accedere profilo password
+email mail wifi bluetooth internet sito link cliccare clicca cliccato allegato allegati cartella
+file documento stampante stampare vocale vocali chat whatsapp telegram instagram youtube google
+amazon spotify netflix selfie audio condividere condiviso inoltrare inoltrato smartphone tablet
+portatile pc cuffie auricolari ricaricare ricarica abbonamento bolletta bonifico iban bancomat
+pagamento pagamenti spedizione tracciamento videochiamata richiamami sentiamoci vediamoci
+dopodomani stamattina stasera stanotte domattina messaggino emoji codice verifica
+
+# --- Forme sbagliate da togliere ---
+-perche -perchè -poiche -poichè -benche -benchè -finche -finchè -affinche -affinchè -nonche -nonchè
+-purche -purchè -cosicche -anziche -anzichè -piu -gia -giu -puo -pò -po -cosi -cioe -cio -pero -percio
+-citta -verita -realta -societa -possibilita -liberta -velocita -universita -eta -attivita
+-opportunita -qualita -novita -felicita -identita -responsabilita -personalita -comunita -umanita
+-priorita -facolta -capacita -difficolta -autorita -abilita -lealta -oscurita -celebrita -proprieta
+-profondita -quantita -probabilita -curiosita -maesta -pieta
+-caffe -lunedi -martedi -mercoledi -giovedi -venerdi -gesu -laggiu -lassu -quassu -quaggiu
+-sara -fara -andra -avra -dira -dara -potra -vorra -dovra -verra -stara -sapra -vedra -tornera
+-arrivera -succedera -cambiera -diventera -servira -restera -rimarra -lascera -scoprira -capira
+-parlera -pensera -riuscira -uscira
+-saro -diro -faro -avro -potro -dovro -verro -staro -andro -daro -vedro -sapro -tornero -trovero
+-provero -lascero -cerchero -aiutero -occupero -pensero -mandero -restero -permettero -riusciro
+-moriro -prendero -chiedero -ando -granche -chissa -daccordo
+-và -fà -stà -quì -quà -sù -dò -sò -blù -trè -nè -sè -cè
