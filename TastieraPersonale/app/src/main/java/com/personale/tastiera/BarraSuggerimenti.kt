@@ -15,18 +15,28 @@ enum class TipoSuggerimento { SCORCIATOIA, CORREZIONE, PAROLA }
 /** [daSostituire] è il testo già scritto che verrà rimpiazzato da [testo]. */
 data class Suggerimento(val testo: String, val daSostituire: String, val tipo: TipoSuggerimento)
 
+/**
+ * Barra sopra la tastiera: tre suggerimenti, poi i tasti rapidi ⇧ , . e l'ingranaggio.
+ */
 @SuppressLint("ViewConstructor")
 class BarraSuggerimenti(
     context: Context,
     private val onScelta: (Suggerimento) -> Unit,
     private val onImpostazioni: () -> Unit,
+    private val onTasto: (String) -> Unit,
+    private val onShift: () -> Unit,
 ) : LinearLayout(context) {
 
     private val densita = resources.displayMetrics.density
     private val caselle = List(3) { TextView(context) }
+    private val tastoShift = TextView(context)
+    private val tastoVirgola = TextView(context)
+    private val tastoApostrofo = TextView(context)
+    private val tastoPunto = TextView(context)
     private val ingranaggio = TextView(context)
     private var correnti: List<Suggerimento> = emptyList()
     private var tema = Temi.predefinito
+    private var statoShift = StatoShift.SPENTO
 
     init {
         orientation = HORIZONTAL
@@ -35,18 +45,27 @@ class BarraSuggerimenti(
             tv.textSize = 16f
             tv.setSingleLine(true)
             tv.ellipsize = TextUtils.TruncateAt.END
-            tv.setPadding(dp(10), 0, dp(10), 0)
+            tv.setPadding(dp(4), 0, dp(4), 0) // spazio ridotto tra un suggerimento e l'altro
             tv.setOnClickListener { correnti.getOrNull(i)?.let(onScelta) }
             addView(tv, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
         }
-        ingranaggio.text = "⚙"
-        ingranaggio.textSize = 20f
-        ingranaggio.gravity = Gravity.CENTER
-        ingranaggio.setOnClickListener { onImpostazioni() }
-        addView(ingranaggio, LayoutParams(dp(48), LayoutParams.MATCH_PARENT))
+        aggiungiTasto(tastoShift, "⇧") { onShift() }
+        aggiungiTasto(tastoVirgola, ",") { onTasto(",") }
+        aggiungiTasto(tastoApostrofo, "'") { onTasto("'") }
+        aggiungiTasto(tastoPunto, ".") { onTasto(".") }
+        aggiungiTasto(ingranaggio, "⚙") { onImpostazioni() }
     }
 
     private fun dp(v: Int) = (v * densita).toInt()
+
+    private fun aggiungiTasto(tv: TextView, testo: String, azione: () -> Unit) {
+        tv.text = testo
+        tv.textSize = 20f
+        tv.setTypeface(null, Typeface.BOLD)
+        tv.gravity = Gravity.CENTER
+        tv.setOnClickListener { azione() }
+        addView(tv, LayoutParams(dp(38), LayoutParams.MATCH_PARENT))
+    }
 
     fun mostra(lista: List<Suggerimento>) {
         correnti = lista
@@ -61,11 +80,25 @@ class BarraSuggerimenti(
         }
     }
 
+    fun aggiornaShift(stato: StatoShift) {
+        statoShift = stato
+        coloraTasti()
+    }
+
     fun applicaTema(t: Tema) {
         tema = t
         setBackgroundColor(t.sfondo)
-        ingranaggio.setTextColor(t.testoSecondario)
+        coloraTasti()
         mostra(correnti)
+    }
+
+    private fun coloraTasti() {
+        tastoVirgola.setTextColor(tema.testo)
+        tastoApostrofo.setTextColor(tema.testo)
+        tastoPunto.setTextColor(tema.testo)
+        ingranaggio.setTextColor(tema.testoSecondario)
+        tastoShift.text = if (statoShift == StatoShift.BLOCCATO) "⇪" else "⇧"
+        tastoShift.setTextColor(if (statoShift == StatoShift.SPENTO) tema.testo else tema.accento)
     }
 
     private fun stile(tv: TextView, s: Suggerimento?) {
@@ -94,6 +127,6 @@ class BarraSuggerimenti(
             setColor(colore)
             cornerRadius = dp(16).toFloat()
         },
-        dp(3), dp(6), dp(3), dp(6),
+        dp(1), dp(6), dp(1), dp(6),
     )
 }

@@ -43,6 +43,8 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
 
     private companion object {
         val PAROLA_FINALE = Regex("\\p{L}+$")
+        /** Parola con apostrofo in fondo al testo: c', c'e, po', l'al */
+        val PAROLA_CON_APOSTROFO = Regex("\\p{L}+(?:['’]\\p{L}*)+$")
         val TOKEN_FINALE = Regex("\\S+$")
         const val PUNTEGGIATURA = ".,;:!?"
     }
@@ -59,7 +61,11 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
     override fun onEvaluateFullscreenMode(): Boolean = false
 
     override fun onCreateInputView(): View {
-        val b = BarraSuggerimenti(this, ::scegliSuggerimento, ::apriImpostazioni)
+        val b = BarraSuggerimenti(
+            this, ::scegliSuggerimento, ::apriImpostazioni,
+            onTasto = { onTocco(); onTesto(it) },
+            onShift = { onTocco(); onSpeciale(Codici.SHIFT) },
+        )
         val t = TastieraView(this, this)
         val e = PannelloEmoji(
             this, prefs,
@@ -289,6 +295,21 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         val prima = ic.getTextBeforeCursor(48, 0)?.toString() ?: return
         val token = TOKEN_FINALE.find(prima)?.value ?: return
         if (scorciatoie.esatta(token) != null) return // è una sigla: non toccarla
+
+        // Parole con apostrofo: si corregge solo l'accento o l'apostrofo (c'e → c'è)
+        val conApostrofo = PAROLA_CON_APOSTROFO.find(prima)?.value
+        if (conApostrofo != null && prefs.autocorrezione) {
+            val corretta = dizionario.correggiAccenti(conApostrofo)
+            if (corretta != null) {
+                ic.beginBatchEdit()
+                ic.deleteSurroundingText(conApostrofo.length, 0)
+                ic.commitText(corretta, 1)
+                ic.endBatchEdit()
+                ultimaCorrezione = Correzione(conApostrofo, corretta)
+                return
+            }
+        }
+
         val parola = PAROLA_FINALE.find(prima)?.value ?: return
         val precedente = prima.getOrNull(prima.length - parola.length - 1)
         if (precedente != null && (precedente.isDigit() || precedente in "@#_/")) return
@@ -335,19 +356,33 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
                 lista.add(Suggerimento(it.testo, token, TipoSuggerimento.SCORCIATOIA))
             }
             val parola = PAROLA_FINALE.find(prima)?.value
-            if (suggerimentiParole && prefs.suggerimenti && parola != null) {
-                val correzione = if (prefs.autocorrezione && scorciatoie.esatta(token) == null) {
-                    dizionario.correggi(parola)
-                } else {
-                    null
+            val conApostrofo = PAROLA_CON_APOSTROFO.find(prima)?.value
+            if (suggerimentiParole && prefs.suggerimenti && (parola != null || conApostrofo != null)) {
+                // Correzione: prima la parola intera con apostrofo (c'e → c'è), poi l'ultima parola
+                if (prefs.autocorrezione && scorciatoie.esatta(token) == null) {
+                    val intera = if (conApostrofo != null) dizionario.correggiAccenti(conApostrofo) else null
+                    val singola = if (intera == null && parola != null) dizionario.correggi(parola) else null
+                    if (intera != null && conApostrofo != null) {
+                        lista.add(Suggerimento(intera, conApostrofo, TipoSuggerimento.CORREZIONE))
+                    } else if (singola != null && parola != null) {
+                        lista.add(Suggerimento(singola, parola, TipoSuggerimento.CORREZIONE))
+                    }
                 }
-                if (correzione != null) lista.add(Suggerimento(correzione, parola, TipoSuggerimento.CORREZIONE))
-                dizionario.completamenti(parola, 3).forEach {
-                    if (it != correzione) lista.add(Suggerimento(it, parola, TipoSuggerimento.PAROLA))
+                // Completamenti: forme con apostrofo (c' → c'è), poi la parola dopo l'apostrofo (l'al → altro)
+                if (conApostrofo != null) {
+                    dizionario.completamenti(conApostrofo, 3).forEach {
+                        lista.add(Suggerimento(it, conApostrofo, TipoSuggerimento.PAROLA))
+                    }
+                }
+                if (parola != null) {
+                    dizionario.completamenti(parola, 3).forEach {
+                        lista.add(Suggerimento(it, parola, TipoSuggerimento.PAROLA))
+                    }
                 }
             }
         }
-        b.mostra(lista.distinctBy { it.testo }.take(3))
+        // Due suggerimenti che porterebbero allo stesso testo finale contano come uno solo
+        b.mostra(lista.distinctBy { prima.dropLast(it.daSostituire.length) + it.testo }.take(3))
     }
 
     private fun scegliSuggerimento(s: Suggerimento) {
@@ -392,6 +427,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         }
         if (t.righe !== righe) t.righe = righe
         t.statoShift = if (pagina == Pagina.LETTERE) shift else StatoShift.SPENTO
+        barra?.aggiornaShift(t.statoShift)
     }
 
     private fun aggiornaShiftAutomatico() {

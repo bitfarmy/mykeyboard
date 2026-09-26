@@ -41,7 +41,12 @@ class Dizionario private constructor(private val ctx: Context) {
 
         /** "Perché" → "perche": serve a trovare parole anche senza accenti. */
         fun normalizza(s: String): String =
-            Normalizer.normalize(s.lowercase(ITALIANO), Normalizer.Form.NFD).replace(SEGNI_DIACRITICI, "")
+            Normalizer.normalize(s.lowercase(ITALIANO).replace('’', '\''), Normalizer.Form.NFD)
+                .replace(SEGNI_DIACRITICI, "")
+
+        /** Una parola valida: lettere, eventualmente con apostrofi (c'è, po', l'altro). */
+        fun eParola(s: String): Boolean =
+            s.any { it.isLetter() } && s.all { it.isLetter() || it == '\'' || it == '’' }
 
         /** Copia maiuscole/minuscole da quello che hai scritto: "Cia" + "ciao" → "Ciao". */
         fun adattaMaiuscole(modello: String, parola: String): String = when {
@@ -57,6 +62,8 @@ class Dizionario private constructor(private val ctx: Context) {
     private val base = HashMap<String, Int>()     // parola → punteggio (più alto = più comune)
     private val utente = HashMap<String, Int>()   // parola → quante volte l'hai usata
     private var indice = ArrayList<Voce>()        // ordinato per chiave normalizzata
+    /** "ce" → [c'è], "po" → [po']: per correggere chi scrive senza apostrofo. */
+    private var conApostrofo = HashMap<String, MutableList<String>>()
     private val file = File(ctx.filesDir, "parole_imparate.txt")
     private val principale = Handler(Looper.getMainLooper())
     private val inAttesa = ArrayList<() -> Unit>()
@@ -83,7 +90,7 @@ class Dizionario private constructor(private val ctx: Context) {
                         if (!riga.startsWith("#")) {
                             // Accetta sia "parola" sia "parola 12345" (i numeri vengono ignorati)
                             riga.trim().split(SPAZI).forEach { t ->
-                                if (t.isNotEmpty() && t.all { it.isLetter() }) parole.add(t.lowercase(ITALIANO))
+                                if (eParola(t)) parole.add(t.lowercase(ITALIANO).replace('’', '\''))
                             }
                         }
                     }
@@ -96,6 +103,34 @@ class Dizionario private constructor(private val ctx: Context) {
             val n = parole.size
             parole.forEachIndexed { i, p ->
                 if (!nuovaBase.containsKey(p)) nuovaBase[p] = 1 + 1000 * (n - i) / n
+            }
+
+            // parole_extra_it.txt: "parola" = aggiungi con priorità alta, "-parola" = togli
+            // (serve a eliminare le forme sbagliate tipiche dei sottotitoli: perche, piu, citta...)
+            val daTogliere = HashSet<String>()
+            val extra = ArrayList<String>()
+            try {
+                ctx.assets.open("parole_extra_it.txt").bufferedReader(Charsets.UTF_8).useLines { righe ->
+                    righe.forEach { riga ->
+                        if (!riga.startsWith("#")) {
+                            riga.trim().split(SPAZI).forEach { t ->
+                                val togli = t.startsWith("-")
+                                val w = t.removePrefix("-").lowercase(ITALIANO).replace('’', '\'')
+                                if (eParola(w)) {
+                                    if (togli) daTogliere.add(w) else extra.add(w)
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Nessun file extra: pazienza.
+            }
+            daTogliere.forEach { nuovaBase.remove(it) }
+            val m = extra.size
+            extra.forEachIndexed { j, p ->
+                val punti = 400 + 600 * (m - j) / m.coerceAtLeast(1)
+                nuovaBase[p] = maxOf(nuovaBase[p] ?: 0, punti)
             }
 
             val nuovoUtente = HashMap<String, Int>()
@@ -111,13 +146,22 @@ class Dizionario private constructor(private val ctx: Context) {
                 // File rovinato: ripartiamo da zero.
             }
 
+            // Le forme sbagliate imparate in passato non devono più bloccare le correzioni
+            daTogliere.forEach { nuovoUtente.remove(it) }
+
             val tutte = HashSet<String>(nuovaBase.keys).apply { addAll(nuovoUtente.keys) }
             val nuovoIndice = ArrayList<Voce>(tutte.size)
             tutte.mapTo(nuovoIndice) { Voce(normalizza(it), it) }
             nuovoIndice.sortWith(confronto)
 
+            val nuovaMappa = HashMap<String, MutableList<String>>()
+            nuovaBase.keys.filter { '\'' in it }.forEach { w ->
+                nuovaMappa.getOrPut(normalizza(w).replace("'", "")) { ArrayList() }.add(w)
+            }
+
             principale.post {
                 base.putAll(nuovaBase)
+                conApostrofo = nuovaMappa
                 nuovoUtente.forEach { (p, v) -> utente[p] = (utente[p] ?: 0) + v }
                 val imparateNelFrattempo = utente.keys.filter { it !in tutte }
                 indice = nuovoIndice
@@ -195,30 +239,49 @@ class Dizionario private constructor(private val ctx: Context) {
         return migliori.map { adattaMaiuscole(scritto, it) }
     }
 
-    /** La correzione per [scritta], oppure null se la parola va bene così. */
-    fun correggi(scritta: String): String? {
-        val w = scritta.lowercase(ITALIANO)
-        if (w.length < 2 || !w.all { it.isLetter() } || conosciuta(w) || indice.isEmpty()) return null
+    /**
+     * Solo accenti e apostrofi: "perche" → "perché", "c'e" → "c'è", "po" → "po'".
+     * Mai cambi di lettere, quindi è sicura anche per le parole con apostrofo.
+     */
+    fun correggiAccenti(scritta: String): String? {
+        val w = scritta.lowercase(ITALIANO).replace('’', '\'')
+        if (w.length < 2 || !eParola(w) || conosciuta(w) || indice.isEmpty()) return null
         val chiave = normalizza(w)
         var migliore: String? = null
         var punti = -1
 
-        // 1) Stesse lettere ma accenti diversi: "perche" → "perché", "citta" → "città"
+        val candidati = ArrayList<String>()
         var i = primoIndice(chiave)
         while (i < indice.size && indice[i].chiave == chiave) {
-            val p = indice[i].parola
+            candidati.add(indice[i].parola)
+            i++
+        }
+        conApostrofo[chiave.replace("'", "")]?.let { candidati.addAll(it) }
+
+        for (p in candidati) {
             if (p != w && conosciuta(p) && punteggio(p) > punti) {
                 migliore = p
                 punti = punteggio(p)
             }
-            i++
         }
-        if (migliore != null) return adattaMaiuscole(scritta, migliore)
+        return migliore?.let { adattaMaiuscole(scritta, it) }
+    }
 
-        // 2) Errori di battitura: solo con un dizionario grande, altrimenti rovineremmo parole giuste
-        if (base.size < PAROLE_PER_CORREZIONE_COMPLETA || chiave.length < 4) return null
+    /** La correzione per [scritta], oppure null se la parola va bene così. */
+    fun correggi(scritta: String): String? {
+        val w = scritta.lowercase(ITALIANO)
+        if (w.length < 2 || !eParola(w) || conosciuta(w) || indice.isEmpty()) return null
+
+        // 1) Accenti e apostrofi
+        correggiAccenti(scritta)?.let { return it }
+
+        // 2) Errori di battitura: solo parole senza apostrofo e con un dizionario grande
+        val chiave = normalizza(w)
+        var migliore: String? = null
+        var punti = -1
+        if ('\'' in chiave || base.size < PAROLE_PER_CORREZIONE_COMPLETA || chiave.length < 4) return null
         for (v in indice) {
-            if (abs(v.chiave.length - chiave.length) > 1 || !conosciuta(v.parola)) continue
+            if (abs(v.chiave.length - chiave.length) > 1 || '\'' in v.chiave || !conosciuta(v.parola)) continue
             if (distanzaUno(chiave, v.chiave)) {
                 val pt = punteggio(v.parola)
                 if (pt > punti) {
