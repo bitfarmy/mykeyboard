@@ -175,7 +175,8 @@ class ImpostazioniActivity : Activity() {
             return
         }
         val tipo = if (d.numeroParole >= Dizionario.PAROLE_PER_CORREZIONE_COMPLETA) "completo" else "base"
-        infoDizionario.text = "Dizionario $tipo con ${d.numeroParole} parole. Parole imparate da te: ${d.numeroImparate}."
+        infoDizionario.text = "Dizionario $tipo con ${d.numeroParole} parole, di cui ${d.numeroExtra} aggiunte a mano " +
+            "(c'è, com'è, impostazioni...). Parole imparate da te: ${d.numeroImparate}."
     }
 
     // ---------- Scorciatoie ----------

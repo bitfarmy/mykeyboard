@@ -28,13 +28,13 @@ object Layout {
 
     // Tieni premuto un tasto per scegliere una variante. Modifica liberamente!
     private val ALTERNATIVE = mapOf(
-        "e" to "è é", "u" to "ù ú", "i" to "ì í", "o" to "ò ó",
-        "a" to "à á", "c" to "ç", "n" to "ñ",
+        "q" to "1", "w" to "2", "e" to "3 è é", "r" to "4", "t" to "5",
+        "y" to "6", "u" to "7 ù ú", "i" to "8 ì í", "o" to "9 ò ó", "p" to "0",
+        "a" to "à á", "c" to "ç", "n" to "ñ", "è" to "é à ò ù ì",
         "." to "? ! ; : …", "," to "' \"",
         "-" to "_ – —", "'" to "‘ ’", "\"" to "« » “ ”",
         "€" to "\$ £ ¥", "?" to "¿", "!" to "¡", "%" to "‰",
     )
-
 
     /** Crea una riga da una stringa con i tasti separati da spazi. */
     private fun riga(tasti: String): List<Tasto> =
@@ -42,20 +42,19 @@ object Layout {
 
     private val vuoto = Tasto("", Codici.VUOTO, 0.5f)
 
+    // Virgola, punto e maiuscole stanno nella barra in alto: qui lo spazio si allarga.
     private fun rigaFinale(tastoPagina: Tasto): List<Tasto> = listOf(
         tastoPagina,
         Tasto("🙂", Codici.EMOJI),
-        riga(",")[0],
-        Tasto("italiano", Codici.SPAZIO, 4f),
-        riga(".")[0],
+        Tasto("italiano", Codici.SPAZIO, 6f),
         Tasto("↵", Codici.INVIO, 1.5f),
     )
 
     val lettere: List<List<Tasto>> = listOf(
-        riga("1 2 3 4 5 6 7 8 9 0"),
         riga("q w e r t y u i o p"),
         listOf(vuoto) + riga("a s d f g h j k l") + vuoto,
-        listOf(Tasto("⇧", Codici.SHIFT, 1.5f)) + riga("z x c v b n m") + Tasto("⌫", Codici.CANC, 1.5f),
+        // Al posto di ⇧ c'è il tasto "è", la lettera accentata più usata in italiano
+        listOf(vuoto) + riga("z x c v b n m è") + Tasto("⌫", Codici.CANC, 1.5f),
         rigaFinale(Tasto("?123", Codici.SIMBOLI, 1.5f)),
     )
 

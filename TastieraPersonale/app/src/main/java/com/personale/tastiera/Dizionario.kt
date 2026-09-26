@@ -73,6 +73,8 @@ class Dizionario private constructor(private val ctx: Context) {
         private set
 
     val numeroParole: Int get() = base.size
+    var numeroExtra = 0
+        private set
     val numeroImparate: Int get() = utente.size
 
     fun quandoPronto(azione: () -> Unit) {
@@ -166,6 +168,7 @@ class Dizionario private constructor(private val ctx: Context) {
                 val imparateNelFrattempo = utente.keys.filter { it !in tutte }
                 indice = nuovoIndice
                 imparateNelFrattempo.forEach { inserisci(it) }
+                numeroExtra = extra.toSet().size
                 pronto = true
                 inAttesa.forEach { it() }
                 inAttesa.clear()

@@ -3,8 +3,10 @@ package com.personale.tastiera
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
 import android.view.MotionEvent
@@ -93,16 +95,22 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
     private val margineVerticale = dp(6f)
     private val spazioTasti = dp(5f)
     private val spazioRighe = dp(9f)
-    private val raggio = dp(7f)
+    private val raggio = dp(9f)
+    private val caratteriLettere: Typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+    private val caratteriSpeciali: Typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+    private val rettangoloOmbra = RectF()
+    private val rettangoloAnteprima = RectF()
+
+    /** Colore a metà strada tra [a] e [b] (f = 0 → a, f = 1 → b). */
+    private fun mescola(a: Int, b: Int, f: Float): Int = Color.rgb(
+        (Color.red(a) * (1 - f) + Color.red(b) * f).toInt(),
+        (Color.green(a) * (1 - f) + Color.green(b) * f).toInt(),
+        (Color.blue(a) * (1 - f) + Color.blue(b) * f).toInt(),
+    )
 
     private val pennello = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pennelloTesto = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
     private val pennelloAlternativa = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.RIGHT }
-
-    // --- NUOVO: pennello per la linea separatrice ---
-    private val pennelloLinea = Paint().apply {
-        strokeWidth = dp(1f)
-    }
 
     private val gestore = Handler(Looper.getMainLooper())
     private var posizionati: List<Posizionato> = emptyList()
@@ -172,29 +180,12 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
         posizionati = lista
     }
 
-    // --- NUOVO: la prima riga è quella dei numeri? (tutte cifre singole) ---
-    private fun primaRigaSonoNumeri(): Boolean {
-        val riga = righe.firstOrNull() ?: return false
-        return riga.isNotEmpty() && riga.all {
-            it.codice == Codici.TESTO && it.etichetta.length == 1 && it.etichetta[0] in '0'..'9'
-        }
-    }
-
     // ---------- Disegno ----------
 
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(tema.sfondo)
-
-        // --- NUOVO: linea separatrice sotto la riga dei numeri ---
-        if (primaRigaSonoNumeri()) {
-            val y = margineVerticale + dp(altezzaTastoDp)
-            pennelloLinea.color = tema.testoSecondario
-            pennelloLinea.alpha = 60 // leggera, quasi impercettibile
-            canvas.drawLine(margineOrizzontale, y, width - margineOrizzontale, y, pennelloLinea)
-            pennelloLinea.alpha = 255 // ripristina per i prossimi usi
-        }
-
         val h = dp(altezzaTastoDp) - spazioRighe
+        val ombra = mescola(tema.sfondo, Color.BLACK, 0.35f)
 
         for (p in posizionati) {
             val t = p.tasto
@@ -208,6 +199,14 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
                 t.codice == Codici.TESTO || t.codice == Codici.SPAZIO -> tema.tasto
                 else -> tema.tastoSpeciale
             }
+            // Leggera ombra sotto ogni tasto: dà profondità senza appesantire
+            if (!premuto) {
+                val colore = pennello.color
+                pennello.color = ombra
+                rettangoloOmbra.set(p.rect.left, p.rect.top + dp(1.5f), p.rect.right, p.rect.bottom + dp(1.5f))
+                canvas.drawRoundRect(rettangoloOmbra, raggio, raggio, pennello)
+                pennello.color = colore
+            }
             canvas.drawRoundRect(p.rect, raggio, raggio, pennello)
 
             val etichetta = etichetta(t)
@@ -217,6 +216,7 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
                 spazio -> tema.testoSecondario
                 else -> tema.testo
             }
+            pennelloTesto.typeface = if (t.codice == Codici.TESTO) caratteriLettere else caratteriSpeciali
             pennelloTesto.textSize = when {
                 spazio -> h * 0.26f
                 etichetta.codePointCount(0, etichetta.length) == 1 -> h * 0.42f
@@ -241,7 +241,33 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
             }
         }
 
+        val premutoOra = tastoPremuto
+        if (premutoOra != null && popup == null && premutoOra.tasto.codice == Codici.TESTO) {
+            disegnaAnteprima(canvas, premutoOra, ombra)
+        }
         popup?.let { disegnaPopup(canvas, it) }
+    }
+
+    /** La lettera ingrandita sopra il dito mentre premi un tasto. */
+    private fun disegnaAnteprima(canvas: Canvas, k: Posizionato, ombra: Int) {
+        val larghezza = k.rect.width() * 1.3f
+        val altezza = k.rect.height() * 1.2f
+        val massimo = max(margineOrizzontale, width - margineOrizzontale - larghezza)
+        val sinistra = (k.rect.centerX() - larghezza / 2).coerceIn(margineOrizzontale, massimo)
+        val alto = max(dp(2f), k.rect.top - altezza - dp(6f))
+        rettangoloAnteprima.set(sinistra, alto, sinistra + larghezza, alto + altezza)
+
+        pennello.color = ombra
+        rettangoloOmbra.set(sinistra, alto + dp(2f), sinistra + larghezza, alto + altezza + dp(2f))
+        canvas.drawRoundRect(rettangoloOmbra, raggio, raggio, pennello)
+        pennello.color = tema.tasto
+        canvas.drawRoundRect(rettangoloAnteprima, raggio, raggio, pennello)
+
+        pennelloTesto.color = tema.testo
+        pennelloTesto.typeface = caratteriLettere
+        pennelloTesto.textSize = altezza * 0.5f
+        val base = rettangoloAnteprima.centerY() - (pennelloTesto.descent() + pennelloTesto.ascent()) / 2
+        canvas.drawText(etichetta(k.tasto), rettangoloAnteprima.centerX(), base, pennelloTesto)
     }
 
     private fun disegnaPopup(canvas: Canvas, p: Popup) {
@@ -369,4 +395,3 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
         popup = null
     }
 }
-
