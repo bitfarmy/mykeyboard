@@ -91,14 +91,6 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
             }
         }
 
-    var numeriSempreVisibili = true
-        set(value) {
-            if (field != value) {
-                field = value
-                invalidate()
-            }
-        }
-
     private val margineOrizzontale = dp(3f)
     private val margineVerticale = dp(6f)
     private val spazioTasti = dp(5f)
@@ -237,7 +229,7 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
             val base = p.rect.centerY() - (pennelloTesto.descent() + pennelloTesto.ascent()) / 2
             canvas.drawText(etichetta, p.rect.centerX(), base, pennelloTesto)
 
-            if (numeriSempreVisibili && t.codice == Codici.TESTO && t.alternative.isNotEmpty()) {
+            if (t.codice == Codici.TESTO && t.alternative.isNotEmpty()) {
                 pennelloAlternativa.color = tema.testoSecondario
                 pennelloAlternativa.textSize = h * 0.22f
                 canvas.drawText(

@@ -41,6 +41,7 @@ object Layout {
         tasti.split(" ").map { Tasto(it, alternative = ALTERNATIVE[it]?.split(" ") ?: emptyList()) }
 
     private val vuoto = Tasto("", Codici.VUOTO, 0.5f)
+    private val rigaNumeri: List<Tasto> = riga("1 2 3 4 5 6 7 8 9 0")
 
     // Virgola, punto e maiuscole stanno nella barra in alto: qui lo spazio si allarga.
     private fun rigaFinale(tastoPagina: Tasto): List<Tasto> = listOf(
@@ -50,13 +51,16 @@ object Layout {
         Tasto("↵", Codici.INVIO, 1.5f),
     )
 
-    val lettere: List<List<Tasto>> = listOf(
+    val lettereBase: List<List<Tasto>> = listOf(
         riga("q w e r t y u i o p"),
         listOf(vuoto) + riga("a s d f g h j k l") + vuoto,
-        // Al posto di ⇧ c'è il tasto "è", la lettera accentata più usata in italiano
         listOf(vuoto) + riga("z x c v b n m è") + Tasto("⌫", Codici.CANC, 1.5f),
         rigaFinale(Tasto("?123", Codici.SIMBOLI, 1.5f)),
     )
+    val lettereConNumeri: List<List<Tasto>> = listOf(rigaNumeri) + lettereBase
+
+    fun lettere(numeriSempreVisibili: Boolean): List<List<Tasto>> =
+        if (numeriSempreVisibili) lettereConNumeri else lettereBase
 
     val simboli: List<List<Tasto>> = listOf(
         riga("1 2 3 4 5 6 7 8 9 0"),

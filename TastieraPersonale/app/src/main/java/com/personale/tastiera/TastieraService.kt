@@ -414,7 +414,6 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
             2 -> 60f
             else -> 53f
         }
-        tastiera?.numeriSempreVisibili = prefs.numeriSempreVisibili
         barra?.applicaTema(tema)
         pannelloEmoji?.applicaTema(tema)
     }
@@ -422,7 +421,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
     private fun aggiornaTastiera() {
         val t = tastiera ?: return
         val righe = when (pagina) {
-            Pagina.LETTERE -> Layout.lettere
+            Pagina.LETTERE -> Layout.lettere(prefs.numeriSempreVisibili)
             Pagina.SIMBOLI -> Layout.simboli
             Pagina.SIMBOLI2 -> Layout.simboli2
         }
