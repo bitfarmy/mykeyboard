@@ -414,6 +414,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
             2 -> 60f
             else -> 53f
         }
+        tastiera?.numeriSempreVisibili = prefs.numeriSempreVisibili
         barra?.applicaTema(tema)
         pannelloEmoji?.applicaTema(tema)
     }

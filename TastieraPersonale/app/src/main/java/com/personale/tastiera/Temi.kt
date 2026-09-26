@@ -54,6 +54,18 @@ object Temi {
             premuto = 0xFFBCC4D6.toInt(), testo = 0xFF1C2638.toInt(), testoSecondario = 0xFF65708A.toInt(),
             accento = 0xFF2F4B7C.toInt(), testoSuAccento = 0xFFFFFFFF.toInt(),
         ),
+        Tema(
+            "cyberpunk", "Cyberpunk",
+            sfondo = 0xFF0D0B14.toInt(), tasto = 0xFF1F1730.toInt(), tastoSpeciale = 0xFF150F22.toInt(),
+            premuto = 0xFF3A2B5C.toInt(), testo = 0xFF00F0FF.toInt(), testoSecondario = 0xFF9C7FC9.toInt(),
+            accento = 0xFFFF2CDF.toInt(), testoSuAccento = 0xFF0D0B14.toInt(),
+        ),
+        Tema(
+            "neon", "Neon",
+            sfondo = 0xFF05080A.toInt(), tasto = 0xFF10161A.toInt(), tastoSpeciale = 0xFF0A0F12.toInt(),
+            premuto = 0xFF1C2A2E.toInt(), testo = 0xFF39FF14.toInt(), testoSecondario = 0xFF4FA8A0.toInt(),
+            accento = 0xFF00E5FF.toInt(), testoSuAccento = 0xFF05080A.toInt(),
+        ),
     )
 
     val predefinito: Tema get() = tutti.first()
@@ -93,6 +105,11 @@ class Preferenze(context: Context) {
     var suono: Boolean
         get() = sp.getBoolean("suono", false)
         set(valore) = scrivi("suono", valore)
+
+    /** Il numero piccolo in alto a destra sui tasti q-p, sempre visibile o solo tenendo premuto. */
+    var numeriSempreVisibili: Boolean
+        get() = sp.getBoolean("numeri_sempre_visibili", true)
+        set(valore) = scrivi("numeri_sempre_visibili", valore)
 
     /** 0 = bassa, 1 = media, 2 = alta */
     var altezzaTasti: Int

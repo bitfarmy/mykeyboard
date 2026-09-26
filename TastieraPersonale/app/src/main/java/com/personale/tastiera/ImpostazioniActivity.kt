@@ -94,6 +94,12 @@ class ImpostazioniActivity : Activity() {
         }
         colonna.addView(gruppoAltezza)
 
+        colonna.addView(interruttore(
+            "Numeri sempre visibili",
+            "Il numero piccolo su q-p-a-s... resta sempre acceso. Spegnilo per una tastiera più pulita: i numeri restano comunque disponibili tenendo premuto il tasto.",
+            prefs.numeriSempreVisibili,
+        ) { prefs.numeriSempreVisibili = it })
+
         colonna.addView(interruttore("Suggerimenti", "Mostra le parole mentre scrivi.", prefs.suggerimenti) {
             prefs.suggerimenti = it
         })
