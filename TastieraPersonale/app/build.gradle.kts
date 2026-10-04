@@ -1,7 +1,46 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+/**
+ * La chiave di firma NON sta nel repository. Viene letta, nell'ordine, da:
+ * 1. variabili d'ambiente KEYSTORE_FILE, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD (GitHub Actions);
+ * 2. il file indicato da TASTIERA_KEYSTORE_PROPERTIES, oppure keystore.properties nella cartella
+ *    del progetto, oppure ~/.android-chiavi/keystore.properties (sul tuo computer).
+ * Il file .properties contiene: storeFile, storePassword, keyAlias, keyPassword.
+ */
+data class Firma(val file: File, val storePassword: String, val alias: String, val keyPassword: String)
+
+fun leggiFirma(): Firma? {
+    val env = System.getenv()
+    val fileEnv = env["KEYSTORE_FILE"]
+    if (!fileEnv.isNullOrBlank()) {
+        return Firma(
+            file(fileEnv),
+            env["KEYSTORE_PASSWORD"] ?: error("Manca KEYSTORE_PASSWORD"),
+            env["KEY_ALIAS"] ?: error("Manca KEY_ALIAS"),
+            env["KEY_PASSWORD"] ?: error("Manca KEY_PASSWORD"),
+        )
+    }
+    val candidati = listOfNotNull(
+        env["TASTIERA_KEYSTORE_PROPERTIES"]?.let { File(it) },
+        rootProject.file("keystore.properties"),
+        File(System.getProperty("user.home"), ".android-chiavi/keystore.properties"),
+    )
+    val props = candidati.firstOrNull { it.isFile } ?: return null
+    val p = Properties().apply { props.inputStream().use { load(it) } }
+    return Firma(
+        File(p.getProperty("storeFile")),
+        p.getProperty("storePassword"),
+        p.getProperty("keyAlias"),
+        p.getProperty("keyPassword"),
+    )
+}
+
+val firma = leggiFirma()
 
 android {
     namespace = "com.personale.tastiera"
@@ -12,28 +51,29 @@ android {
         minSdk = 26
         // 34 di proposito: evita le regole "edge-to-edge" di Android 15 che complicano le tastiere
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.2"
     }
 
-    // Chiave fissa: ogni APK compilato (da Android Studio o da GitHub) si installa sopra il precedente
-    // senza perdere scorciatoie e parole imparate. Tieni il progetto privato.
     signingConfigs {
-        create("personale") {
-            storeFile = rootProject.file("firma/tastiera-personale.jks")
-            storePassword = "tastiera123"
-            keyAlias = "tastiera"
-            keyPassword = "tastiera123"
+        if (firma != null) {
+            create("personale") {
+                storeFile = firma.file
+                storePassword = firma.storePassword
+                keyAlias = firma.alias
+                keyPassword = firma.keyPassword
+            }
         }
     }
 
     buildTypes {
+        // Senza chiave personale la build di debug usa la chiave di debug standard di Android.
         debug {
-            signingConfig = signingConfigs.getByName("personale")
+            if (firma != null) signingConfig = signingConfigs.getByName("personale")
         }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("personale")
+            if (firma != null) signingConfig = signingConfigs.getByName("personale")
         }
     }
 
@@ -44,6 +84,21 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
-// Nessuna libreria esterna: solo Android + Kotlin.
+// L'APK da installare deve essere firmato con la chiave personale, altrimenti non si aggiorna.
+tasks.matching { it.name == "assembleRelease" }.configureEach {
+    doFirst {
+        if (firma == null) throw GradleException(
+            "Chiave di firma non trovata: imposta i secret su GitHub o crea keystore.properties (vedi README).",
+        )
+    }
+}
+
+// Nessuna libreria esterna nell'app: solo Android + Kotlin. JUnit serve solo ai test sul computer.
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+}

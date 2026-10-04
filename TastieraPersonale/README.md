@@ -11,7 +11,7 @@ Tastiera Android personale in Kotlin, senza librerie esterne.
 - Pannello emoji con categorie e recenti.
 - Sei temi colore e tre altezze dei tasti.
 - Tieni premuto lo spazio per passare a un'altra tastiera.
-- Nei campi password e in modalità incognito non impara nulla. Le parole imparate restano sul telefono.
+- Nei campi password e in modalità incognito non impara nulla, e nemmeno da nomi e indirizzi. Le parole imparate restano sul telefono: l'app non ha il permesso di usare Internet e non finisce nei backup.
 
 ## Installarla sul telefono
 
@@ -40,11 +40,23 @@ Per l'autocorrezione completa sostituisci il file con una lista di almeno 10.000
 
 ## Ottenere l'APK senza Android Studio (GitHub)
 
-1. Crea un repository **privato** su github.com e carica tutto il contenuto di questa cartella, compresa `.github`.
-2. Il caricamento avvia da solo la compilazione: la trovi nella scheda **Actions** (circa 5 minuti).
-3. Apri l'esecuzione completata e scarica **la-mia-tastiera** in fondo alla pagina. È uno zip che contiene `app-debug.apk`.
-4. Copia l'APK sui telefoni e aprilo, permettendo l'installazione da origini sconosciute.
+1. Ogni modifica caricata su GitHub avvia la compilazione: la trovi nella scheda **Actions** (circa 5 minuti).
+2. Apri l'esecuzione completata e scarica **la-mia-tastiera** in fondo alla pagina. È uno zip che contiene `app-release.apk`.
+3. Copia l'APK sui telefoni e aprilo, permettendo l'installazione da origini sconosciute.
 
-Se la cartella `.github` non viene caricata (è nascosta su alcuni computer), vai su Actions → "set up a workflow yourself" e incolla il contenuto di `.github/workflows/compila-apk.yml`.
+## Chiave di firma
 
-Ogni volta che modifichi un file su GitHub parte una nuova compilazione. L'APK è firmato con la chiave in `firma/`, quindi si installa sopra la versione precedente.
+L'APK è firmato con una chiave personale che **non sta nel repository**: solo chi ha la chiave può pubblicare aggiornamenti che Android accetta sopra la versione installata.
+
+- Sul computer la chiave sta in `~/.android-chiavi/` (`tastiera.jks` + `keystore.properties`). **Fanne un backup** (per esempio nel password manager): se la perdi, potrai solo disinstallare e reinstallare, perdendo parole imparate e scorciatoie.
+- Su GitHub la chiave sta nei secret del repository (Settings → Secrets and variables → Actions): `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Per caricarli:
+
+```
+D=~/.android-chiavi; R=bitfarmy/mykeyboard
+base64 -w0 $D/tastiera.jks | gh secret set KEYSTORE_BASE64 -R $R
+grep '^storePassword=' $D/keystore.properties | cut -d= -f2- | tr -d '\n' | gh secret set KEYSTORE_PASSWORD -R $R
+grep '^keyPassword=' $D/keystore.properties | cut -d= -f2- | tr -d '\n' | gh secret set KEY_PASSWORD -R $R
+printf tastiera | gh secret set KEY_ALIAS -R $R
+```
+
+- In Android Studio la chiave viene trovata da sola in `~/.android-chiavi/keystore.properties` (oppure in un `keystore.properties` nella cartella del progetto, ignorato da git). Senza chiave, la versione di debug usa la chiave di debug di Android.

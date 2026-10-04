@@ -107,11 +107,17 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
                 variante == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
                 variante == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS
             )
+        // Nomi, indirizzi e filtri di ricerca: suggerimenti sì, ma non si impara nulla (dati personali)
+        val campoPersonale = campoDiTesto && (
+            variante == InputType.TYPE_TEXT_VARIATION_PERSON_NAME ||
+                variante == InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS ||
+                variante == InputType.TYPE_TEXT_VARIATION_FILTER
+            )
         val nienteSuggerimenti = (info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
         val incognito = (info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
 
         suggerimentiParole = campoDiTesto && !campoPassword && !campoTecnico && !nienteSuggerimenti
-        puoImparare = suggerimentiParole && !incognito
+        puoImparare = suggerimentiParole && !incognito && !campoPersonale
 
         pagina = when (classe) {
             InputType.TYPE_CLASS_NUMBER, InputType.TYPE_CLASS_PHONE, InputType.TYPE_CLASS_DATETIME -> Pagina.SIMBOLI

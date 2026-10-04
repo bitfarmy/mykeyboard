@@ -1,0 +1,12 @@
+# Chiavi di firma: MAI nel repository
+*.jks
+*.keystore
+keystore.properties
+
+# Compilazione
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
