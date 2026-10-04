@@ -77,6 +77,15 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
             }
         }
 
+    /** La lingua in uso: decide come si scrivono le maiuscole. */
+    var locale: Locale = Locale.ITALIAN
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
+
     var etichettaInvio = "↵"
         set(value) {
             field = value
@@ -297,8 +306,9 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
         else -> t.etichetta
     }
 
+    // "ß".uppercase() diventerebbe "SS": la ß resta com'è
     private fun applicaShift(s: String) =
-        if (statoShift != StatoShift.SPENTO) s.uppercase(Locale.ITALIAN) else s
+        if (statoShift != StatoShift.SPENTO && s != "ß") s.uppercase(locale) else s
 
     // ---------- Tocchi ----------
 

@@ -2,15 +2,16 @@
 
 Tastiera Android personale in Kotlin, senza librerie esterne.
 
-## Cosa fa (versione 0.1)
+## Cosa fa (versione 0.2)
 
-- Tastiera italiana QWERTY con pagine di simboli, maiuscole automatiche, blocco maiuscole (doppio tocco su ⇧) e cancellazione continua tenendo premuto ⌫.
-- Tieni premuto un tasto per le varianti: numeri sulla prima riga, lettere accentate su e, a, i, o, u.
-- Barra dei suggerimenti con completamento delle parole e autocorrezione. Premi ⌫ subito dopo una correzione per annullarla: la tastiera impara la tua parola.
+- Tastiera con pagine di simboli, maiuscole automatiche, blocco maiuscole (doppio tocco su ⇧) e cancellazione continua tenendo premuto ⌫.
+- Sei lingue: italiano (incluso), inglese, spagnolo, francese (AZERTY), tedesco (QWERTZ) e portoghese, da scaricare quando servono. Con più lingue attive compare il tasto 🌐 per passare dall'una all'altra.
+- Tieni premuto un tasto per le varianti: numeri sulla prima riga, lettere accentate della lingua in uso.
+- Barra dei suggerimenti con completamento delle parole e autocorrezione. La correzione evidenziata è quella che lo spazio applicherà; quando la tastiera non è sicura, propone senza imporre. Premi ⌫ subito dopo una correzione per annullarla: la tastiera impara la tua parola.
 - Scorciatoie: una sigla (anche una sola lettera) fa comparire una frase salvata, segnata con ⚡.
 - Pannello emoji con categorie e recenti.
 - Sei temi colore e tre altezze dei tasti.
-- Tieni premuto lo spazio per passare a un'altra tastiera.
+- Tieni premuto lo spazio (o 🌐) per passare a un'altra tastiera.
 - Nei campi password e in modalità incognito non impara nulla, e nemmeno da nomi e indirizzi. Le parole imparate restano sul telefono: l'app non ha il permesso di usare Internet e non finisce nei backup.
 
 ## Installarla sul telefono
@@ -24,19 +25,52 @@ Tastiera Android personale in Kotlin, senza librerie esterne.
 
 | Cosa vuoi cambiare | File |
 |---|---|
-| Disposizione dei tasti e varianti | `Layout.kt` |
+| Disposizione dei tasti, varianti e lingue | `Layout.kt` |
 | Colori e temi | `Temi.kt` |
 | Emoji disponibili | `PannelloEmoji.kt` (in fondo) |
 | Aspetto dei tasti | `TastieraView.kt` |
 | Logica di scrittura | `TastieraService.kt` |
-| Suggerimenti e correzioni | `Dizionario.kt` |
+| Suggerimenti e correzioni | `Lessico.kt` (regole), `Dizionario.kt` (file e caricamento) |
+| Importazione dei dizionari | `ImportaDizionario.kt`, `CatalogoDizionari.kt` (generato) |
 | Schermata delle impostazioni | `ImpostazioniActivity.kt` |
 
-## Un dizionario più grande
+## Lingue e dizionari
 
-Il file `app/src/main/assets/parole_it.txt` contiene circa 800 parole comuni. Con queste la tastiera suggerisce e sistema gli accenti (perche → perché), ma non corregge gli errori di battitura, perché scambierebbe per errori troppe parole giuste.
+L'italiano è incluso nell'app. Le altre lingue si attivano dalle impostazioni, sezione **Lingue**:
 
-Per l'autocorrezione completa sostituisci il file con una lista di almeno 10.000 parole ordinate dalla più frequente. Vanno bene una parola per riga oppure righe nel formato `parola 12345`: i numeri vengono ignorati. Una fonte possibile è il progetto FrequencyWords su GitHub (file italiano `it_50k.txt`); verifica la licenza prima di usarlo.
+1. tocca **Scarica**: si apre il browser e scarica il dizionario dal repository pubblico [bitfarmy/mykeyboard-dizionari](https://github.com/bitfarmy/mykeyboard-dizionari/releases);
+2. torna nelle impostazioni e tocca **Importa**, poi scegli il file appena scaricato (di solito nella cartella Download).
+
+La tastiera **non ha il permesso di usare Internet** e non lo avrà: per questo il download passa dal browser. Prima di installare un file la tastiera ne calcola l'impronta SHA-256 e la confronta con quelle scritte nell'app (`CatalogoDizionari.kt`): un file rovinato, modificato o di un'altra versione viene rifiutato.
+
+### Da dove vengono le parole
+
+Ogni dizionario contiene 60–70.000 parole con la loro frequenza, create da `dizionari/genera_tutti.sh`:
+
+- le frequenze vengono dai sottotitoli di OpenSubtitles 2018 (progetto [FrequencyWords](https://github.com/hermitdave/FrequencyWords), CC BY-SA 4.0);
+- ogni parola è controllata con il dizionario ortografico Hunspell di LibreOffice della sua lingua: restano fuori gli errori tipici dei sottotitoli (perche, piu, citta…), e le parole che vogliono la maiuscola la mantengono (Roma, Haus, I);
+- le liste in `dizionari/extra/` aggiungono a mano forme con apostrofo (c'è, I'm, c'est) e parole di tutti i giorni, e con `-parola` tolgono le forme sbagliate.
+
+Per rigenerarli: `dizionari/genera_tutti.sh`. Poi, se sono cambiati, alza `VERSIONE` nello script, pubblica i file in una nuova release di `mykeyboard-dizionari` e ricompila l'app (il catalogo con le impronte si aggiorna da solo).
+
+### Come corregge
+
+Per una parola che non conosce, la tastiera confronta due ipotesi: "hai sbagliato a battere una parola del dizionario" e "è una parola vera che il dizionario non conosce".
+
+- La prima ipotesi tiene conto di quanto è comune la parola e di quanto è probabile l'errore: un tasto vicino, due lettere invertite o una doppia dimenticata (tuto → tutto) costano poco.
+- La seconda usa un modello delle sequenze di lettere della lingua: "rwcentemente" non sembra italiano, "constatando" sì.
+
+La correzione si applica da sola solo se è probabile almeno al 90%, altrimenti compare tra i suggerimenti. Non tocca i nomi con la maiuscola a metà frase.
+
+Su un banco di prova di 3.000 errori di battitura e 3.000 parole giuste ma rare (dati mai usati per tarare il correttore):
+
+| | v0.1 | v0.2 |
+|---|---|---|
+| Refusi corretti da soli | 86,6% | 77,5% (+18,1% proposti nella barra) |
+| Refusi corretti nel modo sbagliato | 12,5% | 1,4% |
+| Parole giuste ma rare rovinate | 31,5% | 21,7% |
+
+I test del correttore sono in `app/src/test` e girano a ogni compilazione su GitHub (`gradle testDebugUnitTest`).
 
 ## Ottenere l'APK senza Android Studio (GitHub)
 

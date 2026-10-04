@@ -2,9 +2,11 @@ package com.personale.tastiera
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
@@ -21,14 +23,20 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import java.io.File
+import kotlin.concurrent.thread
 
 /** L'app che si apre dall'icona: da qui attivi la tastiera e la personalizzi. */
 class ImpostazioniActivity : Activity() {
 
+    private companion object {
+        const val RICHIESTA_IMPORTA = 1
+    }
+
     private lateinit var prefs: Preferenze
     private lateinit var stato: TextView
     private lateinit var elencoScorciatoie: LinearLayout
-    private lateinit var infoDizionario: TextView
+    private lateinit var elencoLingue: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,8 +113,9 @@ class ImpostazioniActivity : Activity() {
         })
         colonna.addView(interruttore(
             "Autocorrezione",
-            "Con il dizionario base sistema gli accenti (perche → perché). " +
-                "Con un dizionario completo corregge anche gli errori di battitura. " +
+            "Sistema accenti (perche → perché) ed errori di battitura (tuto → tutto). " +
+                "Corregge da sola solo quando è sicura: la correzione è evidenziata sopra la tastiera. " +
+                "Negli altri casi te la propone tra i suggerimenti. Non tocca i nomi con la maiuscola a metà frase. " +
                 "Premi ⌫ subito dopo una correzione per annullarla.",
             prefs.autocorrezione,
         ) { prefs.autocorrezione = it })
@@ -133,17 +142,29 @@ class ImpostazioniActivity : Activity() {
         colonna.addView(pulsante("Aggiungi scorciatoia") { modificaScorciatoia(null) })
         aggiornaScorciatoie()
 
-        // Dizionario
-        colonna.addView(titolo("Dizionario"))
-        infoDizionario = testo("")
-        colonna.addView(infoDizionario)
+        // Lingue
+        colonna.addView(titolo("Lingue"))
+        colonna.addView(testo(
+            "Attiva più lingue e passa dall'una all'altra con il tasto 🌐 sulla tastiera " +
+                "(tienilo premuto per cambiare tastiera). Ogni lingua ha la sua disposizione dei tasti, " +
+                "il suo dizionario e le sue parole imparate.",
+        ))
+        elencoLingue = LinearLayout(this)
+        elencoLingue.orientation = LinearLayout.VERTICAL
+        colonna.addView(elencoLingue)
+        colonna.addView(pulsante("Importa un dizionario scaricato") { scegliFileDaImportare() })
+        colonna.addView(testo(
+            "La tastiera non ha il permesso di usare Internet, così niente di quello che scrivi può uscire dal telefono. " +
+                "Per questo \"Scarica\" apre il browser sul file del dizionario; poi lo importi con il pulsante qui sopra. " +
+                "Prima di usarlo la tastiera controlla che il file sia identico all'originale (impronta SHA-256).",
+        ))
         colonna.addView(pulsante("Cancella le parole imparate") {
             AlertDialog.Builder(this)
                 .setTitle("Cancellare le parole imparate?")
-                .setMessage("Il dizionario base resta. Perdi solo le parole che la tastiera ha imparato da te.")
+                .setMessage("I dizionari restano. Perdi solo le parole che la tastiera ha imparato da te, in tutte le lingue.")
                 .setPositiveButton("Cancella") { _, _ ->
-                    Dizionario.get(this).cancellaImparate()
-                    aggiornaInfoDizionario()
+                    Dizionario.cancellaTutteLeImparate(this)
+                    elencoLingue.postDelayed({ aggiornaLingue() }, 300)
                 }
                 .setNegativeButton("Annulla", null)
                 .show()
@@ -153,7 +174,7 @@ class ImpostazioniActivity : Activity() {
     override fun onResume() {
         super.onResume()
         aggiornaStato()
-        aggiornaInfoDizionario()
+        aggiornaLingue()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -173,16 +194,140 @@ class ImpostazioniActivity : Activity() {
         }
     }
 
-    private fun aggiornaInfoDizionario() {
-        val d = Dizionario.get(this)
-        if (!d.pronto) {
-            infoDizionario.text = "Caricamento del dizionario…"
-            d.quandoPronto { aggiornaInfoDizionario() }
-            return
+    // ---------- Lingue ----------
+
+    private fun aggiornaLingue() {
+        elencoLingue.removeAllViews()
+        val attive = prefs.lingueAttive
+        Lingue.tutte.forEach { l ->
+            val installata = Dizionario.installata(this, l)
+            val box = LinearLayout(this)
+            box.orientation = LinearLayout.VERTICAL
+            box.setPadding(0, dp(6), 0, dp(6))
+
+            val sw = Switch(this)
+            sw.text = l.nomeItaliano
+            sw.textSize = 16f
+            sw.isChecked = installata && l.codice in attive
+            sw.isEnabled = installata
+            sw.setOnCheckedChangeListener { v, attiva -> cambiaLinguaAttiva(l, attiva, v as Switch) }
+            box.addView(sw)
+
+            val imparate = contaImparate(l)
+            val stato = when {
+                l.inclusa -> "Inclusa nell'app"
+                installata -> "Installata"
+                else -> "Da scaricare (%.1f MB)".format(
+                    (CatalogoDizionari.file[l.codice]?.byte ?: 0L) / 1_000_000.0,
+                )
+            } + if (imparate > 0) " · $imparate parole imparate" else ""
+            box.addView(testo(stato))
+
+            if (!l.inclusa) {
+                val riga = LinearLayout(this)
+                riga.orientation = LinearLayout.HORIZONTAL
+                if (installata) {
+                    riga.addView(pulsante("Rimuovi") { chiediRimozione(l) })
+                } else {
+                    riga.addView(pulsante("Scarica") { scarica(l) })
+                    riga.addView(pulsante("Importa") { scegliFileDaImportare() })
+                }
+                box.addView(riga)
+            }
+            elencoLingue.addView(box)
         }
-        val tipo = if (d.numeroParole >= Dizionario.PAROLE_PER_CORREZIONE_COMPLETA) "completo" else "base"
-        infoDizionario.text = "Dizionario $tipo con ${d.numeroParole} parole, di cui ${d.numeroExtra} aggiunte a mano " +
-            "(c'è, com'è, impostazioni...). Parole imparate da te: ${d.numeroImparate}."
+    }
+
+    private fun contaImparate(l: Lingua): Int = try {
+        File(filesDir, "parole_imparate_${l.codice}.txt").takeIf { it.isFile }?.useLines { it.count() } ?: 0
+    } catch (e: Exception) {
+        0
+    }
+
+    private fun cambiaLinguaAttiva(l: Lingua, attiva: Boolean, sw: Switch) {
+        val attive = prefs.lingueAttive.filter { codice ->
+            Lingue.perCodice(codice)?.let { Dizionario.installata(this, it) } == true
+        }.toMutableList()
+        if (attiva) {
+            if (l.codice !in attive) attive.add(l.codice)
+        } else {
+            if (attive.size <= 1 && l.codice in attive) {
+                avviso("Serve almeno una lingua attiva.")
+                sw.isChecked = true
+                return
+            }
+            attive.remove(l.codice)
+            if (prefs.linguaCorrente == l.codice) prefs.linguaCorrente = attive.first()
+        }
+        prefs.lingueAttive = attive
+    }
+
+    private fun scarica(l: Lingua) {
+        val indirizzo = CatalogoDizionari.INDIRIZZO + "${l.codice}.txt"
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(indirizzo)))
+            avviso("Finito il download, torna qui e tocca \"Importa\".")
+        } catch (e: ActivityNotFoundException) {
+            avviso("Nessun browser trovato. Indirizzo: $indirizzo")
+        }
+    }
+
+    private fun scegliFileDaImportare() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("*/*") // i browser salvano i .txt di GitHub come "application/octet-stream"
+        try {
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, RICHIESTA_IMPORTA)
+        } catch (e: ActivityNotFoundException) {
+            avviso("Nessuna app per scegliere i file.")
+        }
+    }
+
+    @Deprecated("Activity semplice, senza AndroidX")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data
+        if (requestCode != RICHIESTA_IMPORTA || resultCode != RESULT_OK || uri == null) return
+        avviso("Controllo il file…")
+        thread(name = "importa-dizionario") {
+            val esito = ImportaDizionario.importa(this, uri)
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                when (esito) {
+                    is ImportaDizionario.Esito.Installato -> {
+                        Dizionario.dimentica(esito.lingua.codice)
+                        if (esito.lingua.codice !in prefs.lingueAttive) {
+                            prefs.lingueAttive = prefs.lingueAttive + esito.lingua.codice
+                        }
+                        avviso("${esito.lingua.nomeItaliano} installato e attivato. Usa 🌐 sulla tastiera per passarci.")
+                    }
+                    is ImportaDizionario.Esito.Errore -> AlertDialog.Builder(this)
+                        .setTitle("File non importato")
+                        .setMessage(esito.messaggio)
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+                aggiornaLingue()
+            }
+        }
+    }
+
+    private fun chiediRimozione(l: Lingua) {
+        AlertDialog.Builder(this)
+            .setTitle("Rimuovere ${l.nomeItaliano}?")
+            .setMessage("Il dizionario viene cancellato dal telefono; le parole imparate restano, se lo reinstalli.")
+            .setPositiveButton("Rimuovi") { _, _ ->
+                val rimaste = prefs.lingueAttive - l.codice
+                prefs.lingueAttive = rimaste.ifEmpty { listOf(Lingue.italiano.codice) }
+                if (prefs.linguaCorrente == l.codice) prefs.linguaCorrente = prefs.lingueAttive.first()
+                Dizionario.dimentica(l.codice)
+                Dizionario.fileScaricato(this, l.codice).delete()
+                aggiornaLingue()
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
     }
 
     // ---------- Scorciatoie ----------

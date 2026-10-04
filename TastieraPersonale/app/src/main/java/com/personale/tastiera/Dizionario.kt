@@ -4,78 +4,67 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import java.io.File
-import java.text.Normalizer
-import java.util.Locale
 import kotlin.concurrent.thread
-import kotlin.math.abs
-import kotlin.math.min
 
 /**
- * Dizionario base (assets/parole_it.txt, parole ordinate dalla più usata)
- * + parole imparate da te (salvate solo sul telefono, in parole_imparate.txt).
+ * Il dizionario di una lingua: quello incluso (assets/parole_it.txt) o quello importato
+ * (files/dizionari/<lingua>.txt), più le parole imparate da te (files/parole_imparate_<lingua>.txt,
+ * solo sul telefono). Le regole di suggerimento e correzione stanno in [Lessico].
  *
  * Va usato solo dal thread principale; il caricamento avviene in background.
  */
-class Dizionario private constructor(private val ctx: Context) {
+class Dizionario private constructor(private val ctx: Context, val lingua: Lingua) {
 
     companion object {
-        @Volatile
-        private var istanza: Dizionario? = null
+        /** Al massimo due lingue in memoria: un dizionario completo occupa una decina di MB. */
+        private const val MASSIMO_IN_MEMORIA = 2
 
-        fun get(context: Context): Dizionario = istanza ?: synchronized(this) {
-            istanza ?: Dizionario(context.applicationContext).also {
-                istanza = it
-                it.carica()
+        private val istanze = object : LinkedHashMap<String, Dizionario>(4, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Dizionario>): Boolean {
+                if (size <= MASSIMO_IN_MEMORIA) return false
+                eldest.value.salva()
+                return true
             }
         }
 
-        /** Sotto questa soglia il dizionario è "base": correggiamo solo gli accenti. */
-        // Con 6.000+ parole comuni reali (ordinate per frequenza), gli errori di battitura
-        // a distanza 1 su parole di almeno 4 lettere restano un rischio basso di falsi positivi.
-        const val PAROLE_PER_CORREZIONE_COMPLETA = 6_000
+        fun get(context: Context, lingua: Lingua): Dizionario = synchronized(istanze) {
+            istanze.getOrPut(lingua.codice) {
+                Dizionario(context.applicationContext, lingua).also { it.carica() }
+            }
+        }
 
-        private const val BONUS_UTENTE = 150
-        private val SEGNI_DIACRITICI = Regex("\\p{Mn}+")
-        private val SPAZI = Regex("\\s+")
-        private val ITALIANO: Locale = Locale.ITALIAN
+        /** Dopo aver installato o tolto un dizionario: alla prossima richiesta viene ricaricato. */
+        fun dimentica(codice: String) = synchronized(istanze) {
+            istanze.remove(codice)?.salva()
+        }
 
-        /** "Perché" → "perche": serve a trovare parole anche senza accenti. */
-        fun normalizza(s: String): String =
-            Normalizer.normalize(s.lowercase(ITALIANO).replace('’', '\''), Normalizer.Form.NFD)
-                .replace(SEGNI_DIACRITICI, "")
+        fun fileScaricato(context: Context, codice: String) =
+            File(File(context.filesDir, "dizionari"), "$codice.txt")
 
-        /** Una parola valida: lettere, eventualmente con apostrofi (c'è, po', l'altro). */
-        fun eParola(s: String): Boolean =
-            s.any { it.isLetter() } && s.all { it.isLetter() || it == '\'' || it == '’' }
+        fun installata(context: Context, lingua: Lingua) =
+            lingua.inclusa || fileScaricato(context, lingua.codice).isFile
 
-        /** Copia maiuscole/minuscole da quello che hai scritto: "Cia" + "ciao" → "Ciao". */
-        fun adattaMaiuscole(modello: String, parola: String): String = when {
-            modello.length > 1 && modello.all { it.isUpperCase() } -> parola.uppercase(ITALIANO)
-            modello.firstOrNull()?.isUpperCase() == true -> parola.replaceFirstChar { it.titlecase(ITALIANO) }
-            else -> parola
+        private fun fileImparate(context: Context, codice: String) =
+            File(context.filesDir, "parole_imparate_$codice.txt")
+
+        fun cancellaTutteLeImparate(context: Context) {
+            synchronized(istanze) { istanze.values.forEach { it.cancellaImparate() } }
+            thread { synchronized(Companion) { Lingue.tutte.forEach { fileImparate(context, it.codice).delete() } } }
         }
     }
 
-    private data class Voce(val chiave: String, val parola: String)
-
-    private val confronto = compareBy<Voce>({ it.chiave }, { it.parola })
-    private val base = HashMap<String, Int>()     // parola → punteggio (più alto = più comune)
-    private val utente = HashMap<String, Int>()   // parola → quante volte l'hai usata
-    private var indice = ArrayList<Voce>()        // ordinato per chiave normalizzata
-    /** "ce" → [c'è], "po" → [po']: per correggere chi scrive senza apostrofo. */
-    private var conApostrofo = HashMap<String, MutableList<String>>()
-    private val file = File(ctx.filesDir, "parole_imparate.txt")
+    private var lessico = Lessico(lingua.locale)
+    private val file = fileImparate(ctx, lingua.codice)
     private val principale = Handler(Looper.getMainLooper())
     private val inAttesa = ArrayList<() -> Unit>()
+    private val imparateNelFrattempo = HashMap<String, Int>()
     private var modificato = false
 
     var pronto = false
         private set
 
-    val numeroParole: Int get() = base.size
-    var numeroExtra = 0
-        private set
-    val numeroImparate: Int get() = utente.size
+    val numeroParole: Int get() = lessico.numeroParole
+    val numeroImparate: Int get() = lessico.numeroImparate
 
     fun quandoPronto(azione: () -> Unit) {
         if (pronto) azione() else inAttesa.add(azione)
@@ -84,91 +73,33 @@ class Dizionario private constructor(private val ctx: Context) {
     // ---------- Caricamento e salvataggio ----------
 
     private fun carica() {
-        thread(name = "carica-dizionario") {
-            val parole = ArrayList<String>()
+        thread(name = "carica-dizionario-${lingua.codice}") {
+            val nuovo = Lessico(lingua.locale, Vicinanza.da(Layout.righeLettere(lingua)))
             try {
-                ctx.assets.open("parole_it.txt").bufferedReader(Charsets.UTF_8).useLines { righe ->
-                    righe.forEach { riga ->
-                        if (!riga.startsWith("#")) {
-                            // Accetta sia "parola" sia "parola 12345" (i numeri vengono ignorati)
-                            riga.trim().split(SPAZI).forEach { t ->
-                                if (eParola(t)) parole.add(t.lowercase(ITALIANO).replace('’', '\''))
-                            }
-                        }
-                    }
+                if (lingua.inclusa) {
+                    ctx.assets.open("parole_${lingua.codice}.txt").bufferedReader(Charsets.UTF_8)
+                        .useLines { nuovo.caricaDizionario(it) }
+                } else {
+                    fileScaricato(ctx, lingua.codice).bufferedReader(Charsets.UTF_8)
+                        .useLines { nuovo.caricaDizionario(it) }
                 }
             } catch (e: Exception) {
                 // Nessun dizionario: funzioneranno solo le parole imparate.
             }
-
-            val nuovaBase = HashMap<String, Int>(parole.size * 2)
-            val n = parole.size
-            parole.forEachIndexed { i, p ->
-                if (!nuovaBase.containsKey(p)) nuovaBase[p] = 1 + 1000 * (n - i) / n
-            }
-
-            // parole_extra_it.txt: "parola" = aggiungi con priorità alta, "-parola" = togli
-            // (serve a eliminare le forme sbagliate tipiche dei sottotitoli: perche, piu, citta...)
-            val daTogliere = HashSet<String>()
-            val extra = ArrayList<String>()
             try {
-                ctx.assets.open("parole_extra_it.txt").bufferedReader(Charsets.UTF_8).useLines { righe ->
-                    righe.forEach { riga ->
-                        if (!riga.startsWith("#")) {
-                            riga.trim().split(SPAZI).forEach { t ->
-                                val togli = t.startsWith("-")
-                                val w = t.removePrefix("-").lowercase(ITALIANO).replace('’', '\'')
-                                if (eParola(w)) {
-                                    if (togli) daTogliere.add(w) else extra.add(w)
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Nessun file extra: pazienza.
-            }
-            daTogliere.forEach { nuovaBase.remove(it) }
-            val m = extra.size
-            extra.forEachIndexed { j, p ->
-                val punti = 400 + 600 * (m - j) / m.coerceAtLeast(1)
-                nuovaBase[p] = maxOf(nuovaBase[p] ?: 0, punti)
-            }
-
-            val nuovoUtente = HashMap<String, Int>()
-            try {
-                if (file.exists()) {
-                    file.forEachLine(Charsets.UTF_8) { riga ->
-                        val parti = riga.split('\t')
-                        val volte = parti.getOrNull(1)?.toIntOrNull()
-                        if (parti.size == 2 && volte != null) nuovoUtente[parti[0]] = volte
-                    }
+                migraVecchioFile()
+                synchronized(Companion) {
+                    if (file.exists()) file.bufferedReader(Charsets.UTF_8).useLines { nuovo.caricaImparate(it) }
                 }
             } catch (e: Exception) {
                 // File rovinato: ripartiamo da zero.
             }
-
-            // Le forme sbagliate imparate in passato non devono più bloccare le correzioni
-            daTogliere.forEach { nuovoUtente.remove(it) }
-
-            val tutte = HashSet<String>(nuovaBase.keys).apply { addAll(nuovoUtente.keys) }
-            val nuovoIndice = ArrayList<Voce>(tutte.size)
-            tutte.mapTo(nuovoIndice) { Voce(normalizza(it), it) }
-            nuovoIndice.sortWith(confronto)
-
-            val nuovaMappa = HashMap<String, MutableList<String>>()
-            nuovaBase.keys.filter { '\'' in it }.forEach { w ->
-                nuovaMappa.getOrPut(normalizza(w).replace("'", "")) { ArrayList() }.add(w)
-            }
+            nuovo.prepara()
 
             principale.post {
-                base.putAll(nuovaBase)
-                conApostrofo = nuovaMappa
-                nuovoUtente.forEach { (p, v) -> utente[p] = (utente[p] ?: 0) + v }
-                val imparateNelFrattempo = utente.keys.filter { it !in tutte }
-                indice = nuovoIndice
-                imparateNelFrattempo.forEach { inserisci(it) }
-                numeroExtra = extra.toSet().size
+                imparateNelFrattempo.forEach { (p, v) -> nuovo.impara(p, v) }
+                imparateNelFrattempo.clear()
+                lessico = nuovo
                 pronto = true
                 inAttesa.forEach { it() }
                 inAttesa.clear()
@@ -176,12 +107,19 @@ class Dizionario private constructor(private val ctx: Context) {
         }
     }
 
+    /** Le versioni 0.1 salvavano solo l'italiano, in parole_imparate.txt. */
+    private fun migraVecchioFile() {
+        if (lingua.codice != "it") return
+        val vecchio = File(ctx.filesDir, "parole_imparate.txt")
+        if (vecchio.exists() && !file.exists()) vecchio.renameTo(file)
+    }
+
     fun salva() {
         if (!modificato || !pronto) return
         modificato = false
-        val copia = HashMap(utente)
-        thread(name = "salva-parole") {
-            synchronized(file) {
+        val copia = lessico.paroleImparate()
+        thread(name = "salva-parole-${lingua.codice}") {
+            synchronized(Companion) {
                 try {
                     val temporaneo = File(file.parentFile, file.name + ".tmp")
                     temporaneo.bufferedWriter(Charsets.UTF_8).use { out ->
@@ -200,142 +138,28 @@ class Dizionario private constructor(private val ctx: Context) {
         }
     }
 
-    fun cancellaImparate() {
-        utente.clear()
-        indice.removeAll { !base.containsKey(it.parola) }
-        modificato = false
-        thread { synchronized(file) { file.delete() } }
+    private fun cancellaImparate() {
+        principale.post {
+            lessico.cancellaImparate()
+            imparateNelFrattempo.clear()
+            modificato = false
+        }
     }
 
-    // ---------- Uso ----------
+    // ---------- Uso (vedi Lessico) ----------
 
     fun impara(parola: String, volte: Int = 1) {
-        val w = parola.lowercase(ITALIANO)
-        if (w.length < 2 || w.length > 30 || !w.all { it.isLetter() }) return
-        val nuova = !base.containsKey(w) && !utente.containsKey(w)
-        utente[w] = volteUtente(w) + volte
-        if (nuova) inserisci(w)
+        if (!pronto) {
+            val w = parola.lowercase(lingua.locale)
+            imparateNelFrattempo[w] = (imparateNelFrattempo[w] ?: 0) + volte
+            return
+        }
+        lessico.impara(parola, volte)
         modificato = true
     }
 
-    /** Fino a [quanti] parole che iniziano con [scritto], dalla più probabile. */
-    fun completamenti(scritto: String, quanti: Int): List<String> {
-        val chiave = normalizza(scritto)
-        if (chiave.isEmpty()) return emptyList()
-        val minuscolo = scritto.lowercase(ITALIANO)
-        val migliori = ArrayList<String>(quanti + 1)
-
-        var i = primoIndice(chiave)
-        while (i < indice.size && indice[i].chiave.startsWith(chiave)) {
-            val p = indice[i].parola
-            if (p != minuscolo && conosciuta(p)) {
-                val punti = punteggio(p)
-                var pos = migliori.size
-                while (pos > 0 && punteggio(migliori[pos - 1]) < punti) pos--
-                if (pos < quanti) {
-                    migliori.add(pos, p)
-                    if (migliori.size > quanti) migliori.removeAt(migliori.size - 1)
-                }
-            }
-            i++
-        }
-        return migliori.map { adattaMaiuscole(scritto, it) }
-    }
-
-    /**
-     * Solo accenti e apostrofi: "perche" → "perché", "c'e" → "c'è", "po" → "po'".
-     * Mai cambi di lettere, quindi è sicura anche per le parole con apostrofo.
-     */
-    fun correggiAccenti(scritta: String): String? {
-        val w = scritta.lowercase(ITALIANO).replace('’', '\'')
-        if (w.length < 2 || !eParola(w) || conosciuta(w) || indice.isEmpty()) return null
-        val chiave = normalizza(w)
-        var migliore: String? = null
-        var punti = -1
-
-        val candidati = ArrayList<String>()
-        var i = primoIndice(chiave)
-        while (i < indice.size && indice[i].chiave == chiave) {
-            candidati.add(indice[i].parola)
-            i++
-        }
-        conApostrofo[chiave.replace("'", "")]?.let { candidati.addAll(it) }
-
-        for (p in candidati) {
-            if (p != w && conosciuta(p) && punteggio(p) > punti) {
-                migliore = p
-                punti = punteggio(p)
-            }
-        }
-        return migliore?.let { adattaMaiuscole(scritta, it) }
-    }
-
-    /** La correzione per [scritta], oppure null se la parola va bene così. */
-    fun correggi(scritta: String): String? {
-        val w = scritta.lowercase(ITALIANO)
-        if (w.length < 2 || !eParola(w) || conosciuta(w) || indice.isEmpty()) return null
-
-        // 1) Accenti e apostrofi
-        correggiAccenti(scritta)?.let { return it }
-
-        // 2) Errori di battitura: solo parole senza apostrofo e con un dizionario grande
-        val chiave = normalizza(w)
-        var migliore: String? = null
-        var punti = -1
-        if ('\'' in chiave || base.size < PAROLE_PER_CORREZIONE_COMPLETA || chiave.length < 4) return null
-        for (v in indice) {
-            if (abs(v.chiave.length - chiave.length) > 1 || '\'' in v.chiave || !conosciuta(v.parola)) continue
-            if (distanzaUno(chiave, v.chiave)) {
-                val pt = punteggio(v.parola)
-                if (pt > punti) {
-                    migliore = v.parola
-                    punti = pt
-                }
-            }
-        }
-        return migliore?.let { adattaMaiuscole(scritta, it) }
-    }
-
-    // ---------- Interni ----------
-
-    private fun volteUtente(p: String) = utente[p] ?: 0
-
-    /** Nel dizionario base, oppure usata da te almeno due volte (così un errore singolo non viene imparato). */
-    private fun conosciuta(p: String) = base.containsKey(p) || volteUtente(p) >= 2
-
-    private fun punteggio(p: String) = (base[p] ?: 0) + min(volteUtente(p), 20) * BONUS_UTENTE
-
-    private fun inserisci(parola: String) {
-        val voce = Voce(normalizza(parola), parola)
-        val pos = indice.binarySearch(voce, confronto)
-        if (pos < 0) indice.add(-pos - 1, voce)
-    }
-
-    private fun primoIndice(chiave: String): Int {
-        var basso = 0
-        var alto = indice.size
-        while (basso < alto) {
-            val medio = (basso + alto) ushr 1
-            if (indice[medio].chiave < chiave) basso = medio + 1 else alto = medio
-        }
-        return basso
-    }
-
-    /** Vero se a e b differiscono per una sola lettera sbagliata, mancante, in più o due lettere scambiate. */
-    private fun distanzaUno(a: String, b: String): Boolean {
-        if (a == b) return false
-        if (a.length == b.length) {
-            var i = 0
-            while (i < a.length && a[i] == b[i]) i++
-            val scambio = i + 1 < a.length && a[i] == b[i + 1] && a[i + 1] == b[i] &&
-                a.regionMatches(i + 2, b, i + 2, a.length - i - 2)
-            return scambio || a.regionMatches(i + 1, b, i + 1, a.length - i - 1)
-        }
-        val corta = if (a.length < b.length) a else b
-        val lunga = if (a.length < b.length) b else a
-        if (lunga.length - corta.length != 1) return false
-        var i = 0
-        while (i < corta.length && corta[i] == lunga[i]) i++
-        return corta.regionMatches(i, lunga, i + 1, corta.length - i)
-    }
+    fun conosciuta(parola: String) = lessico.conosciuta(parola)
+    fun completamenti(scritto: String, quanti: Int) = lessico.completamenti(scritto, quanti)
+    fun correggiAccenti(scritta: String) = lessico.correggiAccenti(scritta)
+    fun correzioni(scritta: String, quante: Int = 2) = lessico.correzioni(scritta, quante)
 }

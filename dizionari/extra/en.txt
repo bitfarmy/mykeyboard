@@ -1,0 +1,11 @@
+# Parole aggiunte a mano (le prime contano di più). "-parola" toglie una forma sbagliata.
+# Le forme con maiuscola (I, I'm) sono quelle che la tastiera propone: "i" diventa "I".
+
+# --- Pronome I e contrazioni ---
+I I'm I've I'll I'd don't it's that's can't didn't you're what's let's doesn't there's isn't
+he's she's won't wasn't we're they're couldn't wouldn't haven't you've you'll we'll aren't
+shouldn't who's hasn't weren't we've they've they'll you'd he'll she'll we'd they'd here's
+where's how's ain't y'all ma'am o'clock
+# --- Parole di tutti i giorni (telefono, app, messaggi) ---
+ok okay app email wifi bluetooth online smartphone selfie emoji whatsapp
+-dont -cant -didnt -doesnt -isnt -wasnt -wont -couldnt -wouldnt -shouldnt -havent -hasnt -arent -werent -im -ive -youre -theyre

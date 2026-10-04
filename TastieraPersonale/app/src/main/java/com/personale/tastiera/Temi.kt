@@ -116,6 +116,15 @@ class Preferenze(context: Context) {
         get() = sp.getInt("altezza_tasti", 1)
         set(valore) = sp.edit().putInt("altezza_tasti", valore).apply()
 
+    /** Codici delle lingue tra cui passi con il tasto 🌐, in ordine. */
+    var lingueAttive: List<String>
+        get() = (sp.getString("lingue_attive", null) ?: "it").split(",").filter { it.isNotEmpty() }
+        set(valore) = sp.edit().putString("lingue_attive", valore.distinct().joinToString(",")).apply()
+
+    var linguaCorrente: String
+        get() = sp.getString("lingua_corrente", null) ?: "it"
+        set(valore) = sp.edit().putString("lingua_corrente", valore).apply()
+
     var emojiRecenti: List<String>
         get() = (sp.getString("emoji_recenti", null) ?: "").split(SEPARATORE).filter { it.isNotEmpty() }
         set(valore) = sp.edit().putString("emoji_recenti", valore.joinToString(SEPARATORE)).apply()

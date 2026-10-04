@@ -1,0 +1,9 @@
+# Parole aggiunte a mano (le prime contano di più). "-parola" toglie una forma sbagliata.
+# Le elisioni (l', d', j'...) seguite da una parola si scrivono già da sole: qui ci sono le forme fisse.
+
+c'est j'ai n'est qu'il qu'elle c'était j'étais n'ai s'il d'accord aujourd'hui quelqu'un jusqu'à
+n'importe qu'est qu'on l'ai j'avais n'était t'es t'as j'aime j'en j'y c'en qu'ils qu'elles
+s'est m'a t'a l'a n'y n'a j'irai lorsqu'il puisqu'il quoiqu'il presqu'île entr'acte
+# --- Parole di tutti i giorni (telefono, app, messaggi) ---
+ok app email wifi bluetooth smartphone selfie emoji whatsapp hey
+-cest -jai -aujourdhui -quelquun -daccord

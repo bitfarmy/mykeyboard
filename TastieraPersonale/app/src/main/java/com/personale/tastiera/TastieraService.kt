@@ -22,8 +22,10 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
     private data class Correzione(val originale: String, val corretta: String, val separatore: String = "")
 
     private lateinit var prefs: Preferenze
+    private lateinit var lingua: Lingua
     private lateinit var dizionario: Dizionario
     private lateinit var scorciatoie: Scorciatoie
+    private var lingueAttive: List<Lingua> = emptyList()
 
     private var barra: BarraSuggerimenti? = null
     private var tastiera: TastieraView? = null
@@ -54,8 +56,37 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
     override fun onCreate() {
         super.onCreate()
         prefs = Preferenze(this)
-        dizionario = Dizionario.get(this)
         scorciatoie = Scorciatoie.get(this)
+        aggiornaLingua()
+    }
+
+    // ---------- Lingue ----------
+
+    /** Legge dalle impostazioni le lingue attive e quella in uso (possono cambiare mentre la tastiera è aperta). */
+    private fun aggiornaLingua() {
+        lingueAttive = prefs.lingueAttive.mapNotNull { Lingue.perCodice(it) }
+            .filter { Dizionario.installata(this, it) }
+            .ifEmpty { listOf(Lingue.italiano) }
+        val nuova = lingueAttive.firstOrNull { it.codice == prefs.linguaCorrente } ?: lingueAttive.first()
+        // Stesso oggetto = stessa lingua e nessun dizionario reimportato nel frattempo dalle impostazioni
+        val d = Dizionario.get(this, nuova)
+        if (!::dizionario.isInitialized || d !== dizionario) {
+            if (::dizionario.isInitialized) dizionario.salva()
+            lingua = nuova
+            dizionario = d
+            d.quandoPronto { aggiornaSuggerimenti() }
+        }
+        tastiera?.locale = lingua.locale
+    }
+
+    private fun prossimaLingua() {
+        if (lingueAttive.size < 2) return
+        val i = lingueAttive.indexOf(lingua)
+        prefs.linguaCorrente = lingueAttive[(i + 1) % lingueAttive.size].codice
+        ultimaCorrezione = null
+        aggiornaLingua()
+        aggiornaTastiera()
+        aggiornaSuggerimenti()
     }
 
     override fun onEvaluateFullscreenMode(): Boolean = false
@@ -127,6 +158,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         ultimaCorrezione = null
         spazioAutomatico = false
 
+        aggiornaLingua()
         applicaPreferenze()
         mostraEmoji(false)
         tastiera?.etichettaInvio = etichettaInvio(info)
@@ -206,11 +238,12 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
             Codici.SIMBOLI2 -> cambiaPagina(Pagina.SIMBOLI2)
             Codici.LETTERE -> cambiaPagina(Pagina.LETTERE)
             Codici.EMOJI -> mostraEmoji(true)
+            Codici.LINGUA -> prossimaLingua()
         }
     }
 
     override fun onPressioneLunga(codice: Int): Boolean = when (codice) {
-        Codici.SPAZIO -> {
+        Codici.SPAZIO, Codici.LINGUA -> {
             // Tieni premuto lo spazio per passare a un'altra tastiera
             (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
             true
@@ -320,7 +353,12 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         val precedente = prima.getOrNull(prima.length - parola.length - 1)
         if (precedente != null && (precedente.isDigit() || precedente in "@#_/")) return
 
-        val corretta = if (prefs.autocorrezione) dizionario.correggi(parola) else null
+        // Solo le correzioni sicure si applicano da sole; mai sui nomi propri a metà frase
+        val corretta = if (prefs.autocorrezione && !nomeProprio(prima, parola)) {
+            dizionario.correzioni(parola, 1).firstOrNull()?.takeIf { it.sicura }?.testo
+        } else {
+            null
+        }
         if (corretta != null) {
             ic.beginBatchEdit()
             ic.deleteSurroundingText(parola.length, 0)
@@ -345,6 +383,16 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         return true
     }
 
+    /**
+     * Una parola con la maiuscola a metà frase è probabilmente un nome (Marta, Fiat):
+     * si propone la correzione ma non la si applica da sola.
+     */
+    private fun nomeProprio(testoPrima: String, parola: String): Boolean {
+        if (parola.firstOrNull()?.isUpperCase() != true) return false
+        val primaDellaParola = testoPrima.dropLast(parola.length).trimEnd()
+        return primaDellaParola.isNotEmpty() && primaDellaParola.last() !in ".!?\n¿¡"
+    }
+
     private fun aggiornaSuggerimenti() {
         val b = barra ?: return
         if (pannelloEmoji?.visibility == View.VISIBLE) return
@@ -364,15 +412,19 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
             val parola = PAROLA_FINALE.find(prima)?.value
             val conApostrofo = PAROLA_CON_APOSTROFO.find(prima)?.value
             if (suggerimentiParole && prefs.suggerimenti && (parola != null || conApostrofo != null)) {
-                // Correzione: prima la parola intera con apostrofo (c'e → c'è), poi l'ultima parola
-                if (prefs.autocorrezione && scorciatoie.esatta(token) == null) {
-                    val intera = if (conApostrofo != null) dizionario.correggiAccenti(conApostrofo) else null
-                    val singola = if (intera == null && parola != null) dizionario.correggi(parola) else null
-                    if (intera != null && conApostrofo != null) {
-                        lista.add(Suggerimento(intera, conApostrofo, TipoSuggerimento.CORREZIONE))
-                    } else if (singola != null && parola != null) {
-                        lista.add(Suggerimento(singola, parola, TipoSuggerimento.CORREZIONE))
-                    }
+                val sigla = scorciatoie.esatta(token) != null
+                // Correzioni: prima la parola intera con apostrofo (c'e → c'è), poi l'ultima parola.
+                // In evidenza solo quella che lo spazio applicherà; le altre sono semplici proposte.
+                val intera = if (conApostrofo != null && !sigla) dizionario.correggiAccenti(conApostrofo) else null
+                val proposte = if (intera == null && parola != null && !sigla) dizionario.correzioni(parola, 2) else emptyList()
+                val automatica = prefs.autocorrezione && parola != null && !nomeProprio(prima, parola)
+                if (intera != null && conApostrofo != null) {
+                    val tipo = if (prefs.autocorrezione) TipoSuggerimento.CORREZIONE else TipoSuggerimento.PAROLA
+                    lista.add(Suggerimento(intera, conApostrofo, tipo))
+                }
+                val prima0 = proposte.firstOrNull()
+                if (prima0 != null && prima0.sicura && automatica) {
+                    lista.add(Suggerimento(prima0.testo, parola!!, TipoSuggerimento.CORREZIONE))
                 }
                 // Completamenti: forme con apostrofo (c' → c'è), poi la parola dopo l'apostrofo (l'al → altro)
                 if (conApostrofo != null) {
@@ -383,6 +435,12 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
                 if (parola != null) {
                     dizionario.completamenti(parola, 3).forEach {
                         lista.add(Suggerimento(it, parola, TipoSuggerimento.PAROLA))
+                    }
+                    // Correzioni incerte: dopo i primi completamenti (forse stai ancora scrivendo la parola),
+                    // ma sempre entro i tre suggerimenti visibili
+                    val pos = minOf(lista.size, 2)
+                    proposte.filter { it !== prima0 || !it.sicura || !automatica }.forEachIndexed { k, c ->
+                        lista.add(minOf(pos + k, lista.size), Suggerimento(c.testo, parola, TipoSuggerimento.PAROLA))
                     }
                 }
             }
@@ -426,11 +484,13 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
 
     private fun aggiornaTastiera() {
         val t = tastiera ?: return
+        val tastoLingua = lingueAttive.size > 1
         val righe = when (pagina) {
-            Pagina.LETTERE -> Layout.lettere(prefs.numeriSempreVisibili)
-            Pagina.SIMBOLI -> Layout.simboli
-            Pagina.SIMBOLI2 -> Layout.simboli2
+            Pagina.LETTERE -> Layout.lettere(lingua, prefs.numeriSempreVisibili, tastoLingua)
+            Pagina.SIMBOLI -> Layout.simboli(lingua, tastoLingua)
+            Pagina.SIMBOLI2 -> Layout.simboli2(lingua, tastoLingua)
         }
+        t.locale = lingua.locale
         if (t.righe !== righe) t.righe = righe
         t.statoShift = if (pagina == Pagina.LETTERE) shift else StatoShift.SPENTO
         barra?.aggiornaShift(t.statoShift)
