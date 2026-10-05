@@ -43,6 +43,9 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
     private var ultimaCorrezione: Correzione? = null
     private var spazioAutomatico = false
 
+    /** Parole di cui hai annullato la correzione con ⌫: in questo campo di testo non vengono ricorrette. */
+    private val rifiutate = HashSet<String>()
+
     private companion object {
         val PAROLA_FINALE = Regex("\\p{L}+$")
         /** Parola con apostrofo in fondo al testo: c', c'e, po', l'al */
@@ -157,6 +160,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         shift = StatoShift.SPENTO
         ultimaCorrezione = null
         spazioAutomatico = false
+        if (!restarting) rifiutate.clear()
 
         aggiornaLingua()
         applicaPreferenze()
@@ -337,7 +341,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
 
         // Parole con apostrofo: si corregge solo l'accento o l'apostrofo (c'e → c'è)
         val conApostrofo = PAROLA_CON_APOSTROFO.find(prima)?.value
-        if (conApostrofo != null && prefs.autocorrezione) {
+        if (conApostrofo != null && prefs.autocorrezione && !rifiutata(conApostrofo)) {
             val corretta = dizionario.correggiAccenti(conApostrofo)
             if (corretta != null) {
                 ic.beginBatchEdit()
@@ -354,8 +358,11 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         if (precedente != null && (precedente.isDigit() || precedente in "@#_/")) return
 
         // Solo le correzioni sicure si applicano da sole; mai sui nomi propri a metà frase
-        val corretta = if (prefs.autocorrezione && !nomeProprio(prima, parola)) {
-            dizionario.correzioni(parola, 1).firstOrNull()?.takeIf { it.sicura }?.testo
+        // né sulle parole di cui hai appena annullato la correzione
+        val rifiutata = rifiutata(parola)
+        val proposta = dizionario.correzioni(parola, 1).firstOrNull()
+        val corretta = if (prefs.autocorrezione && !rifiutata && !nomeProprio(prima, parola)) {
+            proposta?.takeIf { it.sicura }?.testo
         } else {
             null
         }
@@ -366,10 +373,14 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
             ic.endBatchEdit()
             ultimaCorrezione = Correzione(parola, corretta)
             if (puoImparare) dizionario.impara(corretta)
-        } else if (puoImparare) {
+        } else if (puoImparare && proposta == null) {
+            // Si impara da sola solo una parola che non somiglia a nessuna del dizionario (un nome, un termine
+            // tuo). Un refuso non corretto non diventa mai "parola tua": per insegnarla servono due ⌫.
             dizionario.impara(parola)
         }
     }
+
+    private fun rifiutata(parola: String) = parola.lowercase(lingua.locale) in rifiutate
 
     /** ⌫ subito dopo una correzione la annulla e impara la tua parola. */
     private fun annullaCorrezione(ic: InputConnection, c: Correzione): Boolean {
@@ -379,7 +390,9 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         ic.deleteSurroundingText(atteso.length, 0)
         ic.commitText(c.originale, 1)
         ic.endBatchEdit()
-        if (puoImparare) dizionario.impara(c.originale, volte = 2)
+        // Conta come un uso: dopo due annullamenti (anche in momenti diversi) diventa "parola tua"
+        rifiutate.add(c.originale.lowercase(lingua.locale))
+        if (puoImparare) dizionario.impara(c.originale)
         return true
     }
 
@@ -415,9 +428,9 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
                 val sigla = scorciatoie.esatta(token) != null
                 // Correzioni: prima la parola intera con apostrofo (c'e → c'è), poi l'ultima parola.
                 // In evidenza solo quella che lo spazio applicherà; le altre sono semplici proposte.
-                val intera = if (conApostrofo != null && !sigla) dizionario.correggiAccenti(conApostrofo) else null
+                val intera = if (conApostrofo != null && !sigla && !rifiutata(conApostrofo)) dizionario.correggiAccenti(conApostrofo) else null
                 val proposte = if (intera == null && parola != null && !sigla) dizionario.correzioni(parola, 2) else emptyList()
-                val automatica = prefs.autocorrezione && parola != null && !nomeProprio(prima, parola)
+                val automatica = prefs.autocorrezione && parola != null && !nomeProprio(prima, parola) && !rifiutata(parola)
                 if (intera != null && conApostrofo != null) {
                     val tipo = if (prefs.autocorrezione) TipoSuggerimento.CORREZIONE else TipoSuggerimento.PAROLA
                     lista.add(Suggerimento(intera, conApostrofo, tipo))

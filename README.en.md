@@ -2,13 +2,13 @@
 
 [🇮🇹 Italiano](README.md) · 🇬🇧 **English**
 
-<img src="docs/img/copertina_en.svg" alt="My Keyboard 2.0.1: a Windows 95 style window that types 'freind' and corrects it to 'friend'" width="100%">
+<img src="docs/img/copertina_en.svg" alt="My Keyboard 2.0.2: a Windows 95 style window that types 'freind' and corrects it to 'friend'" width="100%">
 
 # ⌨️ La mia tastiera — *My Keyboard*
 
 **A personal, private, offline Android keyboard — with a '90s heart.**
 
-[![Version](https://img.shields.io/badge/version-2.0.1-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.0.1)
+[![Version](https://img.shields.io/badge/version-2.0.2-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.0.2)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-008080?style=flat-square&logo=android&logoColor=white)](#-installation)
 [![Kotlin](https://img.shields.io/badge/Kotlin-zero%20dependencies-808080?style=flat-square&logo=kotlin&logoColor=white)](#-project-layout)
 [![Internet](https://img.shields.io/badge/Internet%20permission-NONE-c0c0c0?style=flat-square&labelColor=000000)](#-privacy)
@@ -141,7 +141,7 @@ C:\KEYBOARD> correct "freind"
 - 🔤 **A letter model** recognises the typical letter sequences of each language: Italian *rwcentemente* doesn't look like a word, *constatando* does — so the latter is left alone.
 - 🎯 **Below 90% it only suggests**: the highlighted correction in the bar is always exactly what <kbd>space</kbd> will apply.
 - 🏷️ **Names are respected**: a capitalised word in the middle of a sentence (*Marta*, *Fiat*) is never corrected automatically.
-- ↩️ **Changed your mind?** <kbd>⌫</kbd> right after a correction undoes it, and the keyboard learns your word.
+- ↩️ **Changed your mind?** <kbd>⌫</kbd> right after a correction undoes it, and it won't be suggested again in that field. Undo it a second time, even later, and the keyboard learns your word.
 
 <details>
 <summary><b>Details &gt;&gt;</b> — how the numbers were measured</summary>
@@ -150,7 +150,7 @@ C:\KEYBOARD> correct "freind"
 
 The test bench (`dizionari/banco_di_prova/`) generates 3,000 realistic typos of common Italian words and collects 3,000 valid but rare words that are missing from the dictionary. The autocorrect parameters were tuned on one data set and verified on a different one, never seen before: the numbers above come from the latter.
 
-| | v0.1 | v2.0.1 |
+| | v0.1 | v2.0.2 |
 |---|--:|--:|
 | Typos fixed automatically | 86.6% | 77.5% *(+18.1% suggested in the bar)* |
 | **Typos "fixed" into the wrong word** | **12.5%** | **1.4%** |
@@ -165,11 +165,11 @@ This trade-off is deliberate: correcting a little less on its own, but getting i
 
 ## 💾 Installation
 
-1. Download **`la-mia-tastiera-2.0.1.apk`** from the latest [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
+1. Download **`la-mia-tastiera-2.0.2.apk`** from the latest [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
 2. Open it on your phone and allow installing from unknown sources.
 3. Open **La mia tastiera** and tap the two buttons: <kbd>1. Abilitala</kbd> *(Enable it)* and <kbd>2. Sceglila come tastiera attiva</kbd> *(Make it the active keyboard)*.
 
-> ⚠️ **Running version 0.1?** 2.0.1 is signed with a new key, so Android won't install it over the old one. Write down your shortcuts, uninstall 0.1 and install this one. From now on updates will install normally.
+> ⚠️ **Running version 0.1?** 2.0.2 is signed with a new key, so Android won't install it over the old one. Write down your shortcuts, uninstall 0.1 and install this one. From now on updates will install normally.
 
 ---
 
@@ -233,7 +233,7 @@ The APK is signed with a personal key that is **not in the repository**:
 <details>
 <summary><b>The keyboard "corrected" a word that was right. What now?</b></summary>
 <br>
-Press <kbd>⌫</kbd> straight away: the correction is undone and the keyboard learns your word, so it won't correct it again.
+Press <kbd>⌫</kbd> straight away: the correction is undone and won't be applied again while you stay in that field. The second time you undo the same correction, the keyboard learns your word and stops correcting it. Typos that aren't corrected are never learned behind your back.
 </details>
 
 <details>

@@ -2,12 +2,12 @@
 
 Tastiera Android personale in Kotlin, senza librerie esterne.
 
-## Cosa fa (versione 2.0.1)
+## Cosa fa (versione 2.0.2)
 
 - Tastiera con pagine di simboli, maiuscole automatiche, blocco maiuscole (doppio tocco su ⇧) e cancellazione continua tenendo premuto ⌫.
 - Sei lingue: italiano (incluso), inglese, spagnolo, francese (AZERTY), tedesco (QWERTZ) e portoghese, da scaricare quando servono. Con più lingue attive compare il tasto 🌐 per passare dall'una all'altra.
 - Tieni premuto un tasto per le varianti: numeri sulla prima riga, lettere accentate della lingua in uso.
-- Barra dei suggerimenti con completamento delle parole e autocorrezione. La correzione evidenziata è quella che lo spazio applicherà; quando la tastiera non è sicura, propone senza imporre. Premi ⌫ subito dopo una correzione per annullarla: la tastiera impara la tua parola.
+- Barra dei suggerimenti con completamento delle parole e autocorrezione. La correzione evidenziata è quella che lo spazio applicherà; quando la tastiera non è sicura, propone senza imporre. Premi ⌫ subito dopo una correzione per annullarla: in quel campo non verrà riproposta, e alla seconda volta che la annulli la tastiera impara la tua parola. Un refuso non corretto non viene mai imparato di nascosto.
 - Scorciatoie: una sigla (anche una sola lettera) fa comparire una frase salvata, segnata con ⚡.
 - Pannello emoji con categorie e recenti.
 - Sei temi colore e tre altezze dei tasti.
@@ -64,7 +64,7 @@ La correzione si applica da sola solo se è probabile almeno al 90%, altrimenti 
 
 Su un banco di prova di 3.000 errori di battitura e 3.000 parole giuste ma rare (dati mai usati per tarare il correttore):
 
-| | v0.1 | v2.0.1 |
+| | v0.1 | v2.0.2 |
 |---|---|---|
 | Refusi corretti da soli | 86,6% | 77,5% (+18,1% proposti nella barra) |
 | Refusi corretti nel modo sbagliato | 12,5% | 1,4% |
