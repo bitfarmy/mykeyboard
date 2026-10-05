@@ -2,7 +2,7 @@
 
 Tastiera Android personale in Kotlin, senza librerie esterne.
 
-## Cosa fa (versione 0.2)
+## Cosa fa (versione 2.0.1)
 
 - Tastiera con pagine di simboli, maiuscole automatiche, blocco maiuscole (doppio tocco su ⇧) e cancellazione continua tenendo premuto ⌫.
 - Sei lingue: italiano (incluso), inglese, spagnolo, francese (AZERTY), tedesco (QWERTZ) e portoghese, da scaricare quando servono. Con più lingue attive compare il tasto 🌐 per passare dall'una all'altra.
@@ -64,7 +64,7 @@ La correzione si applica da sola solo se è probabile almeno al 90%, altrimenti 
 
 Su un banco di prova di 3.000 errori di battitura e 3.000 parole giuste ma rare (dati mai usati per tarare il correttore):
 
-| | v0.1 | v0.2 |
+| | v0.1 | v2.0.1 |
 |---|---|---|
 | Refusi corretti da soli | 86,6% | 77,5% (+18,1% proposti nella barra) |
 | Refusi corretti nel modo sbagliato | 12,5% | 1,4% |

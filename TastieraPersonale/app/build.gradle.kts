@@ -51,8 +51,8 @@ android {
         minSdk = 26
         // 34 di proposito: evita le regole "edge-to-edge" di Android 15 che complicano le tastiere
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 20001
+        versionName = "2.0.1"
     }
 
     signingConfigs {
