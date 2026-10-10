@@ -114,7 +114,7 @@ def copertina():
 
     # Finestra principale
     x0, y0, w0, h0 = 110, 18, 720, 376
-    o.append(finestra(x0, y0, w0, h0, t("⌨  La mia tastiera 2.1.0", "⌨  My Keyboard 2.1.0")))
+    o.append(finestra(x0, y0, w0, h0, t("⌨  La mia tastiera 2.2.0", "⌨  My Keyboard 2.2.0")))
     menu = t(["File", "Modifica", "Visualizza", "Lingue", "?"], ["File", "Edit", "View", "Languages", "Help"])
     mx = x0 + 10
     for m in menu:
@@ -234,7 +234,7 @@ def copertina():
 
     for ch, (x, y, w) in tasti_x.items():
         o.append(tasto(ch, x, y, w))
-    o.append(tasto("?123", fx + fw / 2 - 260, ky0 + 3 * (kh + gap), 80))
+    o.append(tasto("@123", fx + fw / 2 - 260, ky0 + 3 * (kh + gap), 80))
     invio_x = max(tasti_x["⌫"][0], fx + fw / 2 + 170 + gap)  # mai sopra la barra spaziatrice
     o.append(rilievo(invio_x, ky0 + 3 * (kh + gap), 70, kh, "#c0c0c0"))
     o.append(testo(invio_x + 35, ky0 + 3 * (kh + gap) + 25, "↵", 16, NERO, "bold", "middle"))
@@ -261,7 +261,7 @@ def copertina():
              '<rect y="7" width="6" height="6" fill="#0000ff"/><rect x="7" y="7" width="6" height="6" fill="#ffd000"/></g>')
     o.append(testo(46, H - 10, t("Avvio", "Start"), 12, NERO, "bold", "middle"))
     o.append(rilievo(84, H - 27, 190, 24, CHIARO, infossato=True))
-    o.append(testo(94, H - 10, t("⌨ La mia tastiera 2.1.0", "⌨ My Keyboard 2.1.0"), 12, NERO, "bold"))
+    o.append(testo(94, H - 10, t("⌨ La mia tastiera 2.2.0", "⌨ My Keyboard 2.2.0"), 12, NERO, "bold"))
     o.append(rilievo(W - 84, H - 27, 80, 24, GRIGIO, infossato=True))
     o.append(testo(W - 44, H - 10, "09:35", 12, NERO, anchor="middle"))
     o.append(testo(W - 72, H - 10, "🔇", 11))
@@ -379,7 +379,7 @@ def statistiche():
     for nome, vecchio, nuovo, nota in voci:
         o.append(testo(24, y + 10, nome, 12, NERO, "bold"))
         o.append(testo(24, y + 26, nota, 11, SCURO))
-        for j, (val, col, etich) in enumerate([(vecchio, "#808080", "v0.1"), (nuovo, BLU, "v2.1.0")]):
+        for j, (val, col, etich) in enumerate([(vecchio, "#808080", "v0.1"), (nuovo, BLU, "v2.2.0")]):
             by = y + j * 22
             o.append(testo(196, by + 14, etich, 11, NERO, anchor="end"))
             w = val * scala

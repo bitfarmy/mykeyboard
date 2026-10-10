@@ -25,9 +25,13 @@ class PannelloEmoji(
         "😀" to FACCINE,
         "👍" to GESTI,
         "❤️" to CUORI,
-        "🐶" to NATURA,
+        "🐶" to ANIMALI,
         "🍕" to CIBO,
-        "⚽" to OGGETTI,
+        "⚽" to ATTIVITA,
+        "🚗" to VIAGGI,
+        "💡" to OGGETTI,
+        "🔣" to SIMBOLI,
+        "🏁" to BANDIERE,
     )
     private val schede = LinearLayout(context)
     private val icone = ArrayList<TextView>()
@@ -44,7 +48,7 @@ class PannelloEmoji(
         categorie.forEachIndexed { i, (icona, _) ->
             val tv = TextView(context)
             tv.text = icona
-            tv.textSize = 20f
+            tv.textSize = 18f
             tv.gravity = Gravity.CENTER
             tv.setOnClickListener { mostraCategoria(i) }
             icone.add(tv)
@@ -84,7 +88,7 @@ class PannelloEmoji(
     private fun mostraCategoria(i: Int) {
         categoria = i
         griglia.removeAllViews()
-        val lista = if (i == 0) prefs.emojiRecenti else categorie[i].second.split(" ")
+        val lista = if (i == 0) prefs.emojiRecenti else categorie[i].second.split(" ").filter { it.isNotEmpty() }
 
         if (lista.isEmpty()) {
             val vuoto = TextView(context)
@@ -148,11 +152,15 @@ class PannelloEmoji(
         const val COLONNE = 8
 
         // Aggiungi o togli emoji: basta separarle con uno spazio.
-        const val FACCINE = "😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥳 😏 😒 😞 😔 😟 😕 🙁 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👻 💀 🤖 💩"
-        const val GESTI = "👍 👎 👌 🤌 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ ✋ 🤚 🖐️ 🖖 👋 👏 🙌 👐 🤲 🙏 🤝 💪 ✍️ 💅 🤳 👀 👁️ 👄 🧠"
-        const val CUORI = "❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 ✨ 🔥 💯 ✅ ❌ ⭐ 🌟 💥 💫 🎉 🎊 🎁 🎈 💤 💬 ❗ ❓ ⚠️ 🔔 🎵 🎶"
-        const val NATURA = "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🦆 🦉 🐴 🦄 🐝 🦋 🐌 🐞 🐢 🐍 🐙 🐬 🐳 🐟 🌸 🌹 🌻 🌷 🌱 🌲 🍀 🍁 🌈 ☀️ 🌙 ⛅ 🌧️ ❄️ 🌊"
-        const val CIBO = "🍕 🍝 🍔 🍟 🌭 🥪 🌮 🥗 🍣 🍜 🍩 🍪 🎂 🍰 🍫 🍦 🍿 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🍒 🍑 🥝 🍅 🥑 🥕 🌽 🥖 🧀 🥚 ☕ 🍵 🍺 🍷 🥂 🍾 🍹 🥤 💧"
-        const val OGGETTI = "⚽ 🏀 🏐 🎾 🏓 🚴 🏃 🏊 🎮 🎲 🎨 🎬 🎤 🎧 📚 ✏️ 📱 💻 ⌚ 📷 💡 🔑 🏠 🚗 🚲 ✈️ 🚀 🏖️ ⛰️ 🗓️ ⏰ 💰 💳 📌 📎 ✂️ 🛒 🎓 💼 🇮🇹"
+        const val FACCINE = "😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 😚 😙 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 🤥 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 🤯 🤠 🥳 😎 🤓 🧐 😕 😟 🙁 😮 😯 😲 😳 🥺 😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 👿 💀 ☠️ 💩 🤡 👹 👺 👻 👽 👾 🤖 😺 😸 😹 😻 😼 😽 🙀 😿 😾 🙈 🙉 🙊 🥲 🥸 🫠 🫢 🫣 🫡 🫥 🫤 🥹 🫨"
+        const val GESTI = "👋 🤚 🖐️ ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦵 🦶 👂 🦻 👃 🧠 🦷 🦴 👀 👁️ 👅 👄 👶 🧒 👦 👧 🧑 👱 👨 🧔 👩 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵️ 💂 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🤱 👼 🎅 🤶 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟 💆 💇 🚶 🏃 💃 🕺 👯 🧘 🫰 🫱 🫲 🫳 🫴 🫵 🫶 🫷 🫸 🫀 🫁 🥷 🫂 🫦 🩻 🩼"
+        const val CUORI = "❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 💋 💌 💯 💢 💥 💫 💦 💨 💣 💬 🗯️ 💭 💤 ✨ 🔥 ⭐ 🌟 🎉 🎊 🎁 🎈 🩷 🩵 🩶"
+        const val ANIMALI = "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐽 🐸 🐵 🐒 🦍 🐔 🐧 🐦 🐤 🐣 🐥 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🐛 🦋 🐌 🐞 🐜 🦟 🦗 🕷️ 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🐋 🦈 🐊 🐅 🐆 🦓 🦒 🐘 🦏 🐪 🐫 🦘 🐃 🐂 🐄 🐎 🐖 🐏 🐑 🐐 🦌 🐕 🐩 🐈 🐓 🦃 🦚 🦜 🦢 🕊️ 🐇 🦝 🦡 🐁 🐀 🐿️ 🦔 🐾 🐉 🌵 🎄 🌲 🌳 🌴 🌱 🌿 ☘️ 🍀 🍃 🍂 🍁 🍄 🌾 💐 🌷 🌹 🥀 🌺 🌸 🌼 🌻 🌞 🌝 🌛 🌜 🌚 🌕 🌖 🌗 🌘 🌑 🌒 🌓 🌔 🌙 🌎 🌍 🌏 🪐 ⚡ ☄️ 🌪️ 🌈 ☀️ 🌤️ ⛅ 🌥️ ☁️ 🌦️ 🌧️ ⛈️ 🌩️ 🌨️ ❄️ ☃️ ⛄ 🌬️ 💧 ☔ 🌊 🦬 🦣 🦫 🦤 🪶 🦭 🪲 🪳 🪰 🪱 🪴 🪨 🪵 🪷 🪸 🪹 🪺 🪽 🪿 🪼 🪻 🫎 🫏"
+        const val CIBO = "🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶️ 🌽 🥕 🧄 🧅 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🥙 🧆 🌮 🌯 🥗 🥘 🥫 🍝 🍜 🍲 🍛 🍣 🍱 🥟 🍤 🍙 🍚 🍘 🍥 🥠 🥮 🍢 🍡 🍧 🍨 🍦 🥧 🧁 🍰 🎂 🍮 🍭 🍬 🍫 🍿 🍩 🍪 🌰 🥜 🍯 🥛 🍼 ☕ 🍵 🧃 🥤 🍶 🍺 🍻 🥂 🍷 🥃 🍸 🍹 🍾 🧊 🥄 🍴 🍽️ 🥣 🥡 🥢 🧂 🫐 🫒 🫑 🫓 🫔 🫕 🫖 🧋 🫗 🫘 🫙 🫚 🫛"
+        const val ATTIVITA = "⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🏓 🏸 🏒 🏑 🥍 🏏 🥅 ⛳ 🏹 🎣 🥊 🥋 🎽 🛹 🛼 ⛸️ 🥌 🎿 ⛷️ 🏂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖️ 🎗️ 🎫 🎟️ 🎪 🤹 🎭 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🪕 🎻 🎲 ♟️ 🎯 🎳 🎮 🎰 🧩 🪄 🪅 🪆 🪩 🪁 🪀 🛝 🪃"
+        const val VIAGGI = "🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🚚 🚛 🚜 🛴 🚲 🛵 🏍️ 🚨 🚔 🚍 🚘 🚖 🚡 🚠 🚟 🚃 🚋 🚞 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚊 🚉 ✈️ 🛫 🛬 🛩️ 💺 🛰️ 🚀 🛸 🚁 🛶 ⛵ 🚤 🛥️ 🛳️ ⛴️ 🚢 ⚓ ⛽ 🚧 🚦 🚥 🚏 🗺️ 🗿 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ ⛱️ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏔️ 🗻 🏕️ ⛺ 🏠 🏡 🏘️ 🏚️ 🏗️ 🏭 🏢 🏬 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏩 💒 🏛️ ⛪ 🕌 🕍 🌃 🏙️ 🌄 🌅 🌆 🌇 🌉 🌌 🎆 🎇 🛖 🛻 🛞 🛗 🛜 🛝"
+        const val OGGETTI = "⌚ 📱 📲 💻 ⌨️ 🖥️ 🖨️ 🖱️ 💽 💾 💿 📀 📷 📸 📹 🎥 📽️ 📞 ☎️ 📟 📠 📺 📻 🎙️ ⏱️ ⏲️ ⏰ 🕰️ ⌛ ⏳ 📡 🔋 🔌 💡 🔦 🕯️ 🧯 💸 💵 💴 💶 💷 💰 💳 💎 ⚖️ 🔧 🔨 ⚒️ 🛠️ ⛏️ 🔩 ⚙️ 🧱 ⛓️ 🧲 🔫 🧨 🔪 🗡️ ⚔️ 🛡️ 🚬 ⚰️ 🏺 🔮 📿 🧿 💈 ⚗️ 🔭 🔬 💊 💉 🩸 🧬 🦠 🧫 🧪 🌡️ 🧹 🧺 🧻 🚽 🚰 🚿 🛁 🧼 🧽 🧴 🔑 🗝️ 🚪 🛋️ 🛏️ 🧸 🖼️ 🛍️ 🛒 🎀 🎏 🎎 🏮 ✉️ 📩 📨 📧 📥 📤 📦 🏷️ 📪 📫 📬 📭 📮 📜 📃 📄 📑 🧾 📊 📈 📉 🗒️ 🗓️ 📆 📅 📇 📋 📁 📂 🗂️ 🗞️ 📰 📓 📔 📒 📕 📗 📘 📙 📚 📖 🔖 🧷 🔗 📎 🖇️ 📐 📏 🧮 📌 📍 ✂️ 🖊️ 🖋️ ✒️ 🖌️ 🖍️ 📝 ✏️ 🔍 🔎 🔏 🔐 🔒 🔓 🎓 💼 🪡 🪢 🩴 🪖 🪗 🪘 🪙 🪚 🪛 🪝 🪜 🪞 🪟 🪠 🪤 🪣 🪥 🪦 🪧 🪬 🪫 🪪 🩹 🩺 🪮 🪭 🪇 🪈"
+        const val SIMBOLI = "❗ ❓ ‼️ ⁉️ ⚠️ 🚫 ⛔ 📵 🔞 ♻️ ✅ ❌ ❎ ➕ ➖ ➗ ✖️ ♾️ 💲 ➰ ➿ 〰️ ©️ ®️ ™️ 🔟 🔠 🔡 🔤 🅰️ 🆎 🅱️ 🆑 🆒 🆓 ℹ️ 🆔 Ⓜ️ 🆕 🆖 🅾️ 🆗 🅿️ 🆘 🆙 🆚 ▶️ ⏸️ ⏯️ ⏹️ ⏺️ ⏭️ ⏮️ ⏩ ⏪ 🔀 🔁 🔂 ◀️ 🔼 🔽 ⬆️ ⬇️ ⬅️ ➡️ ↗️ ↘️ ↙️ ↖️ ↕️ ↔️ ↩️ ↪️ 🔄 🔔 🔕 🔊 🔇 📢 📣 🎵 🎶 🔴 🟠 🟡 🟢 🔵 🟣 ⚫ ⚪ 🟤 🔶 🔷 🔸 🔹 🔺 🔻 💠 🔘 ⬛ ⬜ 🟥 🟧 🟨 🟩 🟦 🟪 🟫 ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ ⛎ ☮️ ☯️ ✝️ ☪️ ✡️ 🕉️ ☸️"
+        const val BANDIERE = "🏁 🚩 🎌 🏴 🏳️ 🇮🇹 🇬🇧 🇺🇸 🇫🇷 🇩🇪 🇪🇸 🇵🇹 🇧🇷 🇦🇷 🇲🇽 🇨🇦 🇦🇺 🇳🇿 🇯🇵 🇨🇳 🇰🇷 🇮🇳 🇷🇺 🇺🇦 🇵🇱 🇳🇱 🇧🇪 🇨🇭 🇦🇹 🇸🇪 🇳🇴 🇩🇰 🇫🇮 🇮🇪 🇬🇷 🇹🇷 🇪🇬 🇿🇦 🇲🇦 🇹🇳 🇳🇬 🇸🇦 🇦🇪 🇮🇱 🇮🇷 🇹🇭 🇻🇳 🇮🇩 🇵🇭 🇨🇺 🇨🇱 🇨🇴 🇵🇪 🇻🇪 🇷🇴 🇭🇺 🇨🇿 🇧🇬 🇭🇷 🇸🇮 🇷🇸 🇦🇱 🇲🇹 🇨🇾 🇱🇺 🇮🇸 🇪🇺 🇺🇳 🇸🇲 🇻🇦"
     }
 }

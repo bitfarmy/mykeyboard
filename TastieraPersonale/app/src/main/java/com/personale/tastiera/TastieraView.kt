@@ -86,12 +86,6 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
             }
         }
 
-    var etichettaInvio = "↵"
-        set(value) {
-            field = value
-            invalidate()
-        }
-
     var altezzaTastoDp = 53f
         set(value) {
             if (field != value) {
@@ -302,7 +296,7 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
     private fun etichetta(t: Tasto): String = when (t.codice) {
         Codici.TESTO -> applicaShift(t.etichetta)
         Codici.SHIFT -> if (statoShift == StatoShift.BLOCCATO) "⇪" else "⇧"
-        Codici.INVIO -> etichettaInvio
+        Codici.INVIO -> "↵"
         else -> t.etichetta
     }
 

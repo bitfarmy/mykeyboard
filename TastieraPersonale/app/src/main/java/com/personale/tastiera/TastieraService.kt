@@ -165,7 +165,6 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         aggiornaLingua()
         applicaPreferenze()
         mostraEmoji(false)
-        tastiera?.etichettaInvio = etichettaInvio(info)
         aggiornaTastiera()
         aggiornaShiftAutomatico()
         aggiornaSuggerimenti()
@@ -537,19 +536,6 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         t.visibility = if (mostra) View.GONE else View.VISIBLE
         e.visibility = if (mostra) View.VISIBLE else View.GONE
         if (!mostra) aggiornaSuggerimenti()
-    }
-
-    private fun etichettaInvio(info: EditorInfo): String {
-        if ((info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0) return "↵"
-        return when (info.imeOptions and EditorInfo.IME_MASK_ACTION) {
-            EditorInfo.IME_ACTION_GO -> "Vai"
-            EditorInfo.IME_ACTION_SEARCH -> "Cerca"
-            EditorInfo.IME_ACTION_SEND -> "Invia"
-            EditorInfo.IME_ACTION_NEXT -> "Avanti"
-            EditorInfo.IME_ACTION_DONE -> "Fine"
-            EditorInfo.IME_ACTION_PREVIOUS -> "Indietro"
-            else -> "↵"
-        }
     }
 
     private fun apriImpostazioni() {

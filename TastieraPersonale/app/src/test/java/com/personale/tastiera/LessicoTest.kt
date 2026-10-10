@@ -80,7 +80,7 @@ class LessicoTest {
     @Test fun nomiConMaiuscoleInterne() = assertNull(it.correggi("iPhonr"))
 
     @Test fun abbreviazioniDaChatNonSiToccano() {
-        for (p in listOf("nn", "xke", "cmq", "qst")) assertNull(p, sicura(p))
+        for (p in listOf("nn", "xke", "cmq", "tvb")) assertNull(p, sicura(p))
     }
 
     @Test fun completamenti() {
@@ -110,9 +110,12 @@ class LessicoTest {
         assertTrue(v.vicini('a', 'q'))
         assertTrue(v.vicini('o', 'p'))
         assertTrue(v.vicini('n', 'm'))
-        assertTrue(v.vicini('z', 'a'))
+        assertTrue(v.vicini('z', 'd')) // con ? e w a sinistra, la z sta sotto la d
         assertFalse(v.vicini('a', 'p'))
-        assertFalse(v.vicini('q', 'e'))
+        // La w sta in basso accanto alla z, quindi la q ora è accanto alla e
+        assertTrue(v.vicini('q', 'e'))
+        assertTrue(v.vicini('w', 'z'))
+        assertFalse(v.vicini('q', 'r'))
     }
 
     @Test fun inglese() {
