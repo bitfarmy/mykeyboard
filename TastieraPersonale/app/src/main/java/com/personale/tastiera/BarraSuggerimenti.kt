@@ -2,7 +2,10 @@ package com.personale.tastiera
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.LayerDrawable
@@ -11,6 +14,7 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.text.TextUtils
 import android.view.Gravity
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 
@@ -33,7 +37,7 @@ class BarraSuggerimenti(
 
     private val densita = resources.displayMetrics.density
     private val caselle = List(3) { TextView(context) }
-    private val tastoShift = TextView(context)
+    private val tastoShift = FrecciaShift(context)
     private val tastoVirgola = TextView(context)
     private val tastoApostrofo = TextView(context)
     private val tastoPunto = TextView(context)
@@ -57,12 +61,17 @@ class BarraSuggerimenti(
         }
         blocco.orientation = HORIZONTAL
         blocco.setPadding(dp(4), 0, dp(4), 0)
-        aggiungiTasto(blocco, tastoShift, "⇧", 30) { onShift() }
-        aggiungiTasto(blocco, tastoVirgola, ",", 24) { onTasto(",") }
-        aggiungiTasto(blocco, tastoApostrofo, "'", 24) { onTasto("'") }
-        aggiungiTasto(blocco, tastoPunto, ".", 24) { onTasto(".") }
-        addView(blocco, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT))
+        tastoShift.setOnClickListener { onShift() }
+        blocco.addView(tastoShift, LayoutParams(dp(28), LayoutParams.MATCH_PARENT))
+        aggiungiTasto(blocco, tastoVirgola, ",", 21) { onTasto(",") }
+        aggiungiTasto(blocco, tastoApostrofo, "'", 21) { onTasto("'") }
+        aggiungiTasto(blocco, tastoPunto, ".", 21) { onTasto(".") }
+        // Blocco e ingranaggio con lo stesso margine ai lati, così stanno centrati nel loro spazio
+        addView(blocco, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT).apply {
+            setMargins(dp(4), 0, dp(2), 0)
+        })
         aggiungiTasto(this, ingranaggio, "⚙", 38) { onImpostazioni() }
+        (ingranaggio.layoutParams as LayoutParams).setMargins(dp(2), 0, dp(4), 0)
     }
 
     private fun dp(v: Int) = (v * densita).toInt()
@@ -72,6 +81,8 @@ class BarraSuggerimenti(
         tv.textSize = 20f
         tv.setTypeface(null, Typeface.BOLD)
         tv.gravity = Gravity.CENTER
+        // L'ombra del rilievo occupa 2 dp in basso: il simbolo si centra sulla parte alta
+        tv.setPadding(0, 0, 0, dp(2))
         tv.setOnClickListener { azione() }
         dove.addView(tv, LayoutParams(dp(larghezza), LayoutParams.MATCH_PARENT))
     }
@@ -127,8 +138,7 @@ class BarraSuggerimenti(
         tastoApostrofo.setTextColor(tema.testo)
         tastoPunto.setTextColor(tema.testo)
         ingranaggio.setTextColor(tema.testoSecondario)
-        tastoShift.text = if (statoShift == StatoShift.BLOCCATO) "⇪" else "⇧"
-        tastoShift.setTextColor(if (statoShift == StatoShift.SPENTO) tema.testo else tema.accento)
+        tastoShift.imposta(statoShift, if (statoShift == StatoShift.SPENTO) tema.testo else tema.accento)
     }
 
     private fun stile(tv: TextView, s: Suggerimento?) {
@@ -185,4 +195,53 @@ class BarraSuggerimenti(
         },
         dp(1), dp(6), dp(1), dp(6),
     )
+}
+
+/**
+ * La freccia del maiuscolo, disegnata a mano: più grande e più netta del carattere ⇧.
+ * Spenta è piena nel colore del testo, accesa nel colore d'accento; bloccata ha anche una barra sotto.
+ */
+@SuppressLint("ViewConstructor")
+private class FrecciaShift(context: Context) : View(context) {
+    private val pennello = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val percorso = Path()
+    private var stato = StatoShift.SPENTO
+
+    fun imposta(nuovo: StatoShift, colore: Int) {
+        stato = nuovo
+        pennello.color = colore
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        val d = resources.displayMetrics.density
+        val cx = width / 2f
+        // Il simbolo sta sopra l'ombra del rilievo (2 dp)
+        val cy = (height - 2 * d) / 2f
+        val lato = 20f * d
+        val bloccato = stato == StatoShift.BLOCCATO
+        val su = cy - lato / 2f - if (bloccato) 1.5f * d else 0f
+        val giu = su + lato
+        val spalla = su + lato * 0.5f
+        val gambo = lato * 0.2f
+        pennello.strokeWidth = 1.5f * d
+        percorso.reset()
+        percorso.moveTo(cx, su)
+        percorso.lineTo(cx + lato * 0.5f, spalla)
+        percorso.lineTo(cx + gambo, spalla)
+        percorso.lineTo(cx + gambo, giu)
+        percorso.lineTo(cx - gambo, giu)
+        percorso.lineTo(cx - gambo, spalla)
+        percorso.lineTo(cx - lato * 0.5f, spalla)
+        percorso.close()
+        pennello.style = Paint.Style.FILL_AND_STROKE
+        canvas.drawPath(percorso, pennello)
+        if (bloccato) {
+            pennello.style = Paint.Style.FILL
+            canvas.drawRect(cx - gambo * 1.6f, giu + 3f * d, cx + gambo * 1.6f, giu + 5f * d, pennello)
+        }
+    }
 }

@@ -2,13 +2,13 @@
 
 🇮🇹 **Italiano** · [🇬🇧 English](README.en.md)
 
-<img src="docs/img/copertina.svg" alt="La mia tastiera 2.2.0: una finestra in stile Windows 95 che scrive 'perche' e lo corregge in 'perché'" width="100%">
+<img src="docs/img/copertina.svg" alt="La mia tastiera 2.2.1: una finestra in stile Windows 95 che scrive 'perche' e lo corregge in 'perché'" width="100%">
 
 # ⌨️ La mia tastiera
 
 **Una tastiera Android personale, privata e offline — con un cuore anni '90.**
 
-[![Versione](https://img.shields.io/badge/versione-2.2.0-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.2.0)
+[![Versione](https://img.shields.io/badge/versione-2.2.1-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.2.1)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-008080?style=flat-square&logo=android&logoColor=white)](#-installazione)
 [![Kotlin](https://img.shields.io/badge/Kotlin-senza%20librerie-808080?style=flat-square&logo=kotlin&logoColor=white)](#-struttura-del-progetto)
 [![Internet](https://img.shields.io/badge/permesso%20Internet-NESSUNO-c0c0c0?style=flat-square&labelColor=000000)](#-privacy)
@@ -148,7 +148,7 @@ C:\TASTIERA> correggi "tuto"
 
 Il banco di prova (`dizionari/banco_di_prova/`) genera 3.000 errori di battitura realistici su parole comuni e raccoglie 3.000 parole giuste ma rare, assenti dal dizionario. I parametri del correttore sono stati tarati con un insieme di dati e verificati con un altro, mai visto prima: i numeri qui sopra vengono da quest'ultimo.
 
-| | v0.1 | v2.2.0 |
+| | v0.1 | v2.2.1 |
 |---|--:|--:|
 | Refusi corretti da soli | 86,6% | 77,5% *(+18,1% proposti nella barra)* |
 | **Refusi corretti nel modo sbagliato** | **12,5%** | **1,4%** |
@@ -163,11 +163,11 @@ La scelta è voluta: correggere un po' meno da sola, ma sbagliare quasi nove vol
 
 ## 💾 Installazione
 
-1. Scarica **`la-mia-tastiera-2.2.0.apk`** dall'ultima [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
+1. Scarica **`la-mia-tastiera-2.2.1.apk`** dall'ultima [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
 2. Aprilo sul telefono e permetti l'installazione da origini sconosciute.
 3. Apri **La mia tastiera** e tocca i due pulsanti: <kbd>1. Abilitala</kbd> e <kbd>2. Sceglila come tastiera attiva</kbd>.
 
-> ⚠️ **Hai la versione 0.1?** La 2.2.0 è firmata con una chiave nuova, quindi Android non la installa sopra la vecchia. Annota le tue scorciatoie, disinstalla la 0.1 e installa questa. Da qui in poi gli aggiornamenti si installeranno normalmente.
+> ⚠️ **Hai la versione 0.1?** La 2.2.1 è firmata con una chiave nuova, quindi Android non la installa sopra la vecchia. Annota le tue scorciatoie, disinstalla la 0.1 e installa questa. Da qui in poi gli aggiornamenti si installeranno normalmente.
 
 ---
 
