@@ -89,6 +89,22 @@ class ImpostazioniActivity : Activity() {
 
         // Tasti e scrittura
         colonna.addView(titolo("Tasti e scrittura"))
+        colonna.addView(testo("Disposizione dei tasti"))
+        val gruppoDisposizione = RadioGroup(this)
+        gruppoDisposizione.orientation = LinearLayout.VERTICAL
+        listOf(
+            "qerty" to "Qerty (la nostra): w e ? in basso a sinistra, ⌫ accanto a invio, tasti più larghi",
+            "qwerty" to "Qwerty (la classica): ⌫ a destra nella terza riga, w dov'è sempre stata",
+        ).forEach { (id, nome) ->
+            val scelta = RadioButton(this)
+            scelta.id = View.generateViewId()
+            scelta.text = nome
+            scelta.isChecked = prefs.disposizione == id
+            scelta.setOnCheckedChangeListener { _, attivo -> if (attivo) prefs.disposizione = id }
+            gruppoDisposizione.addView(scelta, RadioGroup.LayoutParams(RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT))
+        }
+        colonna.addView(gruppoDisposizione)
+
         colonna.addView(testo("Altezza dei tasti"))
         val gruppoAltezza = RadioGroup(this)
         gruppoAltezza.orientation = LinearLayout.HORIZONTAL

@@ -74,7 +74,7 @@ class Dizionario private constructor(private val ctx: Context, val lingua: Lingu
 
     private fun carica() {
         thread(name = "carica-dizionario-${lingua.codice}") {
-            val nuovo = Lessico(lingua.locale, Vicinanza.da(Layout.righeLettere(lingua)))
+            val nuovo = Lessico(lingua.locale, Vicinanza.da(Layout.righeLettere(lingua, classica = Preferenze(ctx).tastieraClassica)))
             try {
                 if (lingua.inclusa) {
                     ctx.assets.open("parole_${lingua.codice}.txt").bufferedReader(Charsets.UTF_8)

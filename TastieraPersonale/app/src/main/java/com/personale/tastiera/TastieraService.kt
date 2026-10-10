@@ -116,7 +116,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
 
         val radice = LinearLayout(this)
         radice.orientation = LinearLayout.VERTICAL
-        radice.addView(b, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)))
+        radice.addView(b, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(50)))
         radice.addView(t, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         radice.addView(e, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, t.altezzaCalcolata()))
         return radice
@@ -498,9 +498,9 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         val t = tastiera ?: return
         val tastoLingua = lingueAttive.size > 1
         val righe = when (pagina) {
-            Pagina.LETTERE -> Layout.lettere(lingua, prefs.numeriSempreVisibili, tastoLingua)
-            Pagina.SIMBOLI -> Layout.simboli(lingua, tastoLingua)
-            Pagina.SIMBOLI2 -> Layout.simboli2(lingua, tastoLingua)
+            Pagina.LETTERE -> Layout.lettere(lingua, prefs.numeriSempreVisibili, tastoLingua, prefs.tastieraClassica)
+            Pagina.SIMBOLI -> Layout.simboli(lingua, tastoLingua, prefs.tastieraClassica)
+            Pagina.SIMBOLI2 -> Layout.simboli2(lingua, tastoLingua, prefs.tastieraClassica)
         }
         t.locale = lingua.locale
         if (t.righe !== righe) t.righe = righe

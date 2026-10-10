@@ -111,6 +111,13 @@ class Preferenze(context: Context) {
         get() = sp.getBoolean("numeri_sempre_visibili", true)
         set(valore) = scrivi("numeri_sempre_visibili", valore)
 
+    /** "qerty" = la nostra disposizione (predefinita), "qwerty" = la classica. */
+    var disposizione: String
+        get() = sp.getString("disposizione", null) ?: "qerty"
+        set(valore) = sp.edit().putString("disposizione", valore).apply()
+
+    val tastieraClassica: Boolean get() = disposizione == "qwerty"
+
     /** 0 = bassa, 1 = media, 2 = alta */
     var altezzaTasti: Int
         get() = sp.getInt("altezza_tasti", 1)

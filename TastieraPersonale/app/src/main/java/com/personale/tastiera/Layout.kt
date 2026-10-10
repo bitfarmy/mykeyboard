@@ -121,16 +121,21 @@ object Layout {
     private val rigaNumeri: List<Tasto> = riga("1 2 3 4 5 6 7 8 9 0")
 
     // Virgola, punto e maiuscole stanno nella barra in alto: qui lo spazio si allarga.
-    // Cancella sta in basso a destra, accanto a invio.
-    private fun rigaFinale(tastoPagina: Tasto, nomeLingua: String, tastoLingua: Boolean): List<Tasto> =
+    // Nella disposizione Qerty cancella sta in basso a destra, accanto a invio; nella Qwerty in fondo alla terza riga.
+    private fun rigaFinale(tastoPagina: Tasto, nomeLingua: String, tastoLingua: Boolean, classica: Boolean): List<Tasto> =
         listOfNotNull(
             tastoPagina,
             if (tastoLingua) Tasto("🌐", Codici.LINGUA) else null,
             Tasto("🙂", Codici.EMOJI),
-            Tasto(nomeLingua, Codici.SPAZIO, if (tastoLingua) 3.5f else 4.5f),
-            Tasto("⌫", Codici.CANC, 1.5f),
+            Tasto(nomeLingua, Codici.SPAZIO, (if (tastoLingua) 3.5f else 4.5f) + if (classica) 1.5f else 0f),
+            if (classica) null else Tasto("⌫", Codici.CANC, 1.5f),
             Tasto("↵", Codici.INVIO, 1.5f),
         )
+
+    private fun tastoSimboli(classica: Boolean) = Tasto(if (classica) "?123" else "@123", Codici.SIMBOLI, 1.5f)
+
+    /** Nella Qwerty cancella è l'ultimo tasto della terza riga; nella Qerty lì c'è uno spazio vuoto. */
+    private fun fineTerzaRiga(classica: Boolean): Tasto = if (classica) Tasto("⌫", Codici.CANC, 1.5f) else vuoto(1.5f)
 
     // Sempre la stessa lista per la stessa tastiera: la vista ridisegna solo se cambia davvero
     private val cache = HashMap<String, List<List<Tasto>>>()
@@ -138,16 +143,17 @@ object Layout {
     /**
      * Solo le tre righe di lettere: servono anche per sapere quali tasti sono vicini.
      * Con [numeriSulleLettere] i numeri compaiono tenendo premuta la prima riga.
+     * Con [classica] la disposizione è la Qwerty di sempre, senza ⌫: la aggiunge [lettere].
      */
-    fun righeLettere(lingua: Lingua, numeriSulleLettere: Boolean = true): List<List<Tasto>> {
+    fun righeLettere(lingua: Lingua, numeriSulleLettere: Boolean = true, classica: Boolean = false): List<List<Tasto>> {
         val primaOriginale = lingua.righe[0].split(" ")
-        // La w sta in basso a sinistra, accanto alla z (nelle tastiere dove la terza riga non ce l'ha già)
-        val spostaW = "w" in primaOriginale && "w" !in lingua.righe[2].split(" ")
+        // Qerty: la w sta in basso a sinistra, accanto alla z (dove la terza riga non ce l'ha già)
+        val spostaW = !classica && "w" in primaOriginale && "w" !in lingua.righe[2].split(" ")
         val prima = if (spostaW) primaOriginale - "w" else primaOriginale
         val terza = if (spostaW) listOf("w") + lingua.righe[2].split(" ") else lingua.righe[2].split(" ")
         val seconda = lingua.righe[1].split(" ")
-        // In basso a sinistra, prima della w: il punto di domanda (tenendo premuto, il punto esclamativo)
-        val terzaConPunto = listOf("?") + terza
+        // Qerty: in basso a sinistra, prima della w, il punto di domanda (tenendo premuto, il punto esclamativo)
+        val terzaConPunto = if (classica) terza else listOf("?") + terza
 
         // Varianti: il numero della posizione originale sulla prima riga, poi le lettere accentate
         val varianti = HashMap<String, String>()
@@ -158,7 +164,7 @@ object Layout {
             if (tutte.isNotEmpty()) varianti[lettera] = tutte
         }
         // La riga più lunga riempie tutta la larghezza: meno tasti per riga = tasti più larghi
-        val larghezza = maxOf(prima.size, seconda.size, terzaConPunto.size).toFloat()
+        val larghezza = maxOf(prima.size, seconda.size, if (classica) terza.size + 3 else terzaConPunto.size).toFloat()
 
         fun centrata(lettere: List<Tasto>): List<Tasto> {
             val margine = (larghezza - lettere.size) / 2
@@ -166,33 +172,43 @@ object Layout {
         }
         val r1 = centrata(riga(prima.joinToString(" "), varianti))
         val r2 = centrata(riga(seconda.joinToString(" "), varianti))
-        val r3 = centrata(riga(terzaConPunto.joinToString(" "), varianti))
+        val r3 = if (classica) {
+            // Come sempre: lettere un po' a sinistra, ⌫ largo a destra (lo aggiunge lettere())
+            val lettere3 = riga(terza.joinToString(" "), varianti)
+            val resto = larghezza - lettere3.size - 1.5f
+            val margine = if (resto <= 0.5f) resto.coerceAtLeast(0f) else resto / 2
+            (if (margine > 0) listOf(vuoto(margine)) else emptyList()) + lettere3 +
+                Tasto("⌫", Codici.CANC, 1.5f + (resto - margine).coerceAtLeast(0f))
+        } else {
+            centrata(riga(terzaConPunto.joinToString(" "), varianti))
+        }
         return listOf(r1, r2, r3)
     }
 
-    fun lettere(lingua: Lingua, numeriSempreVisibili: Boolean, tastoLingua: Boolean): List<List<Tasto>> =
-        cache.getOrPut("${lingua.codice}/$numeriSempreVisibili/$tastoLingua") {
-            val righe = righeLettere(lingua, !numeriSempreVisibili) + listOf(rigaFinale(Tasto("@123", Codici.SIMBOLI, 1.5f), lingua.nome, tastoLingua))
+    fun lettere(lingua: Lingua, numeriSempreVisibili: Boolean, tastoLingua: Boolean, classica: Boolean = false): List<List<Tasto>> =
+        cache.getOrPut("${lingua.codice}/$numeriSempreVisibili/$tastoLingua/$classica") {
+            val righe = righeLettere(lingua, !numeriSempreVisibili, classica) +
+                listOf(rigaFinale(tastoSimboli(classica), lingua.nome, tastoLingua, classica))
             if (numeriSempreVisibili) listOf(rigaNumeri) + righe else righe
         }
 
-    fun simboli(lingua: Lingua, tastoLingua: Boolean): List<List<Tasto>> =
-        cache.getOrPut("simboli/${lingua.codice}/$tastoLingua") {
+    fun simboli(lingua: Lingua, tastoLingua: Boolean, classica: Boolean = false): List<List<Tasto>> =
+        cache.getOrPut("simboli/${lingua.codice}/$tastoLingua/$classica") {
             listOf(
                 riga("1 2 3 4 5 6 7 8 9 0"),
                 riga("@ # € _ & - + ( ) /"),
-                listOf(Tasto("=\\<", Codici.SIMBOLI2, 1.5f)) + riga("* \" ' : ; ! ?") + vuoto(1.5f),
-                rigaFinale(Tasto("ABC", Codici.LETTERE, 1.5f), lingua.nome, tastoLingua),
+                listOf(Tasto("=\\<", Codici.SIMBOLI2, 1.5f)) + riga("* \" ' : ; ! ?") + fineTerzaRiga(classica),
+                rigaFinale(Tasto("ABC", Codici.LETTERE, 1.5f), lingua.nome, tastoLingua, classica),
             )
         }
 
-    fun simboli2(lingua: Lingua, tastoLingua: Boolean): List<List<Tasto>> =
-        cache.getOrPut("simboli2/${lingua.codice}/$tastoLingua") {
+    fun simboli2(lingua: Lingua, tastoLingua: Boolean, classica: Boolean = false): List<List<Tasto>> =
+        cache.getOrPut("simboli2/${lingua.codice}/$tastoLingua/$classica") {
             listOf(
                 riga("~ ` | • ° π ÷ × § ∆"),
                 riga("£ \$ ¥ ^ = { } [ ] %"),
-                listOf(Tasto("@123", Codici.SIMBOLI, 1.5f)) + riga("\\ < > © ® ™ ✓") + vuoto(1.5f),
-                rigaFinale(Tasto("ABC", Codici.LETTERE, 1.5f), lingua.nome, tastoLingua),
+                listOf(tastoSimboli(classica)) + riga("\\ < > © ® ™ ✓") + fineTerzaRiga(classica),
+                rigaFinale(Tasto("ABC", Codici.LETTERE, 1.5f), lingua.nome, tastoLingua, classica),
             )
         }
 }

@@ -212,6 +212,10 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
             }
             canvas.drawRoundRect(p.rect, raggio, raggio, pennello)
 
+            if (t.codice == Codici.INVIO) {
+                disegnaInvio(canvas, p.rect, if (evidenziato && !premuto) tema.testoSuAccento else tema.testo)
+                continue
+            }
             val etichetta = etichetta(t)
             val spazio = t.codice == Codici.SPAZIO
             pennelloTesto.color = when {
@@ -249,6 +253,18 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
             disegnaAnteprima(canvas, premutoOra, ombra)
         }
         popup?.let { disegnaPopup(canvas, it) }
+    }
+
+    private val iconaInvio by lazy { resources.getDrawable(R.drawable.ic_invio, context.theme).mutate() }
+
+    /** L'icona di invio, di misura normale e centrata nel tasto. */
+    private fun disegnaInvio(canvas: Canvas, r: RectF, colore: Int) {
+        val lato = (r.height() * 0.36f).toInt()
+        val x = r.centerX().toInt()
+        val y = r.centerY().toInt()
+        iconaInvio.setTint(colore)
+        iconaInvio.setBounds(x - lato / 2, y - lato / 2, x + lato / 2, y + lato / 2)
+        iconaInvio.draw(canvas)
     }
 
     /** La lettera ingrandita sopra il dito mentre premi un tasto. */
@@ -296,7 +312,6 @@ class TastieraView(context: Context, private val ascoltatore: Ascoltatore) : Vie
     private fun etichetta(t: Tasto): String = when (t.codice) {
         Codici.TESTO -> applicaShift(t.etichetta)
         Codici.SHIFT -> if (statoShift == StatoShift.BLOCCATO) "⇪" else "⇧"
-        Codici.INVIO -> "↵"
         else -> t.etichetta
     }
 

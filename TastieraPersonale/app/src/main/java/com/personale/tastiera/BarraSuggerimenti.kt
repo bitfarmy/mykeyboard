@@ -61,20 +61,21 @@ class BarraSuggerimenti(
             addView(tv, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
         }
         blocco.orientation = HORIZONTAL
-        blocco.setPadding(dp(4), 0, dp(4), 0)
+        blocco.setPadding(dp(6), 0, dp(6), 0)
         tastoShift.scaleType = ImageView.ScaleType.FIT_CENTER
-        tastoShift.setPadding(dp(5), dp(9), dp(5), dp(11)) // l'icona sta sopra l'ombra del rilievo
+        tastoShift.setPadding(dp(5), dp(8), dp(5), dp(10)) // l'icona sta sopra l'ombra del rilievo
         tastoShift.setOnClickListener { onShift() }
-        blocco.addView(tastoShift, LayoutParams(dp(28), LayoutParams.MATCH_PARENT))
+        blocco.addView(tastoShift, LayoutParams(dp(30), LayoutParams.MATCH_PARENT))
         aggiungiPunteggiatura(tastoVirgola, ",") { onTasto(",") }
         aggiungiPunteggiatura(tastoApostrofo, "'") { onTasto("'") }
         aggiungiPunteggiatura(tastoPunto, ".") { onTasto(".") }
         // Blocco e ingranaggio con lo stesso margine ai lati, così stanno centrati nel loro spazio
+        // Un po' più in basso del bordo alto: la barra sta sopra una fila di tasti con più aria sotto che sopra
         addView(blocco, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT).apply {
-            setMargins(dp(4), 0, dp(2), 0)
+            setMargins(dp(4), dp(11), dp(2), 0)
         })
-        aggiungiTasto(this, ingranaggio, "⚙", 38) { onImpostazioni() }
-        (ingranaggio.layoutParams as LayoutParams).setMargins(dp(2), 0, dp(4), 0)
+        aggiungiTasto(this, ingranaggio, "⚙", 42) { onImpostazioni() }
+        (ingranaggio.layoutParams as LayoutParams).setMargins(dp(2), dp(11), dp(5), 0)
     }
 
     private fun dp(v: Int) = (v * densita).toInt()
@@ -82,7 +83,7 @@ class BarraSuggerimenti(
     private fun aggiungiPunteggiatura(tasto: TastoTesto, testo: String, azione: () -> Unit) {
         tasto.testo = testo
         tasto.setOnClickListener { azione() }
-        blocco.addView(tasto, LayoutParams(dp(19), LayoutParams.MATCH_PARENT))
+        blocco.addView(tasto, LayoutParams(dp(21), LayoutParams.MATCH_PARENT))
     }
 
     private fun aggiungiTasto(dove: LinearLayout, tv: TextView, testo: String, larghezza: Int, azione: () -> Unit) {
@@ -119,10 +120,10 @@ class BarraSuggerimenti(
         tema = t
         setBackgroundColor(t.sfondo)
         // Il blocco ⇧ , ' . e l'ingranaggio sono "rilievi": ombra sotto, riflesso sopra
-        blocco.background = rilievo(t.tastoSpeciale, 14, 1, 5)
+        blocco.background = rilievo(t.tastoSpeciale, 15, 0, 0)
         ingranaggio.background = StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_pressed), rilievo(t.premuto, 12, 3, 5))
-            addState(intArrayOf(), rilievo(t.tastoSpeciale, 12, 3, 5))
+            addState(intArrayOf(android.R.attr.state_pressed), rilievo(t.premuto, 13, 0, 0))
+            addState(intArrayOf(), rilievo(t.tastoSpeciale, 13, 0, 0))
         }
         for (tv in listOf(tastoShift, tastoVirgola, tastoApostrofo, tastoPunto)) {
             // Il tasto premuto si accende dentro al blocco
@@ -134,7 +135,7 @@ class BarraSuggerimenti(
                             setColor(t.premuto)
                             cornerRadius = dp(10).toFloat()
                         },
-                        dp(1), dp(7), dp(1), dp(9),
+                        dp(1), dp(3), dp(1), dp(5),
                     ),
                 )
             }
