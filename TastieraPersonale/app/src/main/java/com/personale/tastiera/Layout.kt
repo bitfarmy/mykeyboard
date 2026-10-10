@@ -49,10 +49,10 @@ data class Lingua(
 object Lingue {
     val italiano = Lingua(
         "it", "italiano", "Italiano", Locale.ITALIAN,
-        listOf("q w e r t y u i o p", "a s d f g h j k l", "z x c v b n m è"),
+        listOf("q w e r t y u i o p", "a s d f g h j k l", "z x c v b n m"),
         mapOf(
             "e" to "è é", "u" to "ù ú", "i" to "ì í", "o" to "ò ó", "a" to "à á",
-            "c" to "ç", "n" to "ñ", "è" to "é à ò ù ì",
+            "c" to "ç", "n" to "ñ",
         ),
         inclusa = true,
     )
@@ -121,25 +121,30 @@ object Layout {
     private val rigaNumeri: List<Tasto> = riga("1 2 3 4 5 6 7 8 9 0")
 
     // Virgola, punto e maiuscole stanno nella barra in alto: qui lo spazio si allarga.
+    // Cancella sta in basso a destra, accanto a invio.
     private fun rigaFinale(tastoPagina: Tasto, nomeLingua: String, tastoLingua: Boolean): List<Tasto> =
         listOfNotNull(
             tastoPagina,
             if (tastoLingua) Tasto("🌐", Codici.LINGUA) else null,
             Tasto("🙂", Codici.EMOJI),
-            Tasto(nomeLingua, Codici.SPAZIO, if (tastoLingua) 5f else 6f),
+            Tasto(nomeLingua, Codici.SPAZIO, if (tastoLingua) 3.5f else 4.5f),
+            Tasto("⌫", Codici.CANC, 1.5f),
             Tasto("↵", Codici.INVIO, 1.5f),
         )
 
     // Sempre la stessa lista per la stessa tastiera: la vista ridisegna solo se cambia davvero
     private val cache = HashMap<String, List<List<Tasto>>>()
 
-    /** Solo le tre righe di lettere: servono anche per sapere quali tasti sono vicini. */
-    fun righeLettere(lingua: Lingua): List<List<Tasto>> {
+    /**
+     * Solo le tre righe di lettere: servono anche per sapere quali tasti sono vicini.
+     * Con [numeriSulleLettere] i numeri compaiono tenendo premuta la prima riga.
+     */
+    fun righeLettere(lingua: Lingua, numeriSulleLettere: Boolean = true): List<List<Tasto>> {
         val prima = lingua.righe[0].split(" ")
         // Varianti: il numero sui tasti della prima riga, poi le lettere accentate
         val varianti = HashMap<String, String>()
         (prima + lingua.righe[1].split(" ") + lingua.righe[2].split(" ")).forEach { lettera ->
-            val numero = prima.indexOf(lettera).takeIf { it in NUMERI.indices }?.let { NUMERI[it] }
+            val numero = if (numeriSulleLettere) prima.indexOf(lettera).takeIf { it in NUMERI.indices }?.let { NUMERI[it] } else null
             val tutte = listOfNotNull(numero, lingua.accenti[lettera]).joinToString(" ")
             if (tutte.isNotEmpty()) varianti[lettera] = tutte
         }
@@ -150,18 +155,16 @@ object Layout {
         val margine2 = (larghezza - lettere2.size) / 2
         val r2 = if (margine2 > 0) listOf(vuoto(margine2)) + lettere2 + vuoto(margine2) else lettere2
 
-        // Terza riga: lettere e ⌫, con un piccolo margine a sinistra per allinearle
+        // Terza riga: solo lettere, centrate
         val lettere3 = riga(lingua.righe[2], varianti)
-        val resto = larghezza - lettere3.size - 1.5f
-        val margine3 = if (resto <= 0.5f) resto.coerceAtLeast(0f) else resto / 2
-        val canc = Tasto("⌫", Codici.CANC, 1.5f + (resto - margine3).coerceAtLeast(0f))
-        val r3 = (if (margine3 > 0) listOf(vuoto(margine3)) else emptyList()) + lettere3 + canc
+        val margine3 = (larghezza - lettere3.size) / 2
+        val r3 = if (margine3 > 0) listOf(vuoto(margine3)) + lettere3 + vuoto(margine3) else lettere3
         return listOf(r1, r2, r3)
     }
 
     fun lettere(lingua: Lingua, numeriSempreVisibili: Boolean, tastoLingua: Boolean): List<List<Tasto>> =
         cache.getOrPut("${lingua.codice}/$numeriSempreVisibili/$tastoLingua") {
-            val righe = righeLettere(lingua) + listOf(rigaFinale(Tasto("?123", Codici.SIMBOLI, 1.5f), lingua.nome, tastoLingua))
+            val righe = righeLettere(lingua, !numeriSempreVisibili) + listOf(rigaFinale(Tasto("?123", Codici.SIMBOLI, 1.5f), lingua.nome, tastoLingua))
             if (numeriSempreVisibili) listOf(rigaNumeri) + righe else righe
         }
 
@@ -170,7 +173,7 @@ object Layout {
             listOf(
                 riga("1 2 3 4 5 6 7 8 9 0"),
                 riga("@ # € _ & - + ( ) /"),
-                listOf(Tasto("=\\<", Codici.SIMBOLI2, 1.5f)) + riga("* \" ' : ; ! ?") + Tasto("⌫", Codici.CANC, 1.5f),
+                listOf(Tasto("=\\<", Codici.SIMBOLI2, 1.5f)) + riga("* \" ' : ; ! ?") + vuoto(1.5f),
                 rigaFinale(Tasto("ABC", Codici.LETTERE, 1.5f), lingua.nome, tastoLingua),
             )
         }
@@ -180,7 +183,7 @@ object Layout {
             listOf(
                 riga("~ ` | • ° π ÷ × § ∆"),
                 riga("£ \$ ¥ ^ = { } [ ] %"),
-                listOf(Tasto("?123", Codici.SIMBOLI, 1.5f)) + riga("\\ < > © ® ™ ✓") + Tasto("⌫", Codici.CANC, 1.5f),
+                listOf(Tasto("?123", Codici.SIMBOLI, 1.5f)) + riga("\\ < > © ® ™ ✓") + vuoto(1.5f),
                 rigaFinale(Tasto("ABC", Codici.LETTERE, 1.5f), lingua.nome, tastoLingua),
             )
         }
