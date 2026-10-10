@@ -4,8 +4,13 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.StateListDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
@@ -33,10 +38,19 @@ class ImpostazioniActivity : Activity() {
         const val RICHIESTA_IMPORTA = 1
     }
 
+    // Tavolozza dell'app: verde menta e inchiostro, in linea con il tema Menta della tastiera
+    private val SFONDO = 0xFFEAF2EE.toInt()
+    private val CARTA = Color.WHITE
+    private val INCHIOSTRO = 0xFF173A2B.toInt()
+    private val SECONDARIO = 0xFF5E8171.toInt()
+    private val ACCENTO = 0xFF2E9E6E.toInt()
+    private val ACCENTO_SCURO = 0xFF1F7A54.toInt()
+
     private lateinit var prefs: Preferenze
     private lateinit var stato: TextView
     private lateinit var elencoScorciatoie: LinearLayout
     private lateinit var elencoLingue: LinearLayout
+    private lateinit var editorPersonale: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,13 +59,23 @@ class ImpostazioniActivity : Activity() {
 
         val colonna = LinearLayout(this)
         colonna.orientation = LinearLayout.VERTICAL
-        colonna.setPadding(dp(20), dp(4), dp(20), dp(48))
+        colonna.setPadding(dp(14), dp(8), dp(14), dp(48))
         val scorrimento = ScrollView(this)
+        scorrimento.setBackgroundColor(SFONDO)
         scorrimento.addView(colonna)
         setContentView(scorrimento)
+        actionBar?.setBackgroundDrawable(ColorDrawable(ACCENTO_SCURO))
+
+        val intestazione = TextView(this)
+        intestazione.text = "Privata per scelta: nessun permesso di rete, niente esce dal telefono."
+        intestazione.textSize = 14f
+        intestazione.setTextColor(SECONDARIO)
+        intestazione.setPadding(dp(6), dp(6), dp(6), dp(12))
+        intestazione.tag = "intestazione"
+        colonna.addView(intestazione)
 
         // Attivazione
-        colonna.addView(titolo("Attiva la tastiera"))
+        colonna.addView(titolo("🔌  Attiva la tastiera"))
         stato = testo("")
         colonna.addView(stato)
         colonna.addView(pulsante("1. Abilitala nelle impostazioni") {
@@ -66,16 +90,24 @@ class ImpostazioniActivity : Activity() {
             InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or
             InputType.TYPE_TEXT_FLAG_MULTI_LINE
         prova.minLines = 2
+        prova.setTextColor(INCHIOSTRO)
+        prova.setHintTextColor(SECONDARIO)
+        prova.setPadding(dp(14), dp(10), dp(14), dp(10))
+        prova.background = GradientDrawable().apply {
+            setColor(SFONDO)
+            cornerRadius = dp(12).toFloat()
+        }
         colonna.addView(prova)
 
         // Tema
-        colonna.addView(titolo("Tema"))
+        colonna.addView(titolo("🎨  Tema"))
         val gruppoTemi = RadioGroup(this)
         Temi.tutti.forEach { tema ->
             val scelta = RadioButton(this)
             scelta.id = View.generateViewId()
             scelta.text = tema.nome
             scelta.textSize = 16f
+            stileScelta(scelta)
             scelta.setPadding(dp(8), dp(10), dp(8), dp(10))
             scelta.isChecked = tema.id == prefs.tema
             scelta.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, anteprima(tema), null)
@@ -87,23 +119,34 @@ class ImpostazioniActivity : Activity() {
         }
         colonna.addView(gruppoTemi)
 
+        editorPersonale = costruisciEditorPersonale()
+        editorPersonale.visibility = if (prefs.disposizione == "personale") View.VISIBLE else View.GONE
+
         // Tasti e scrittura
-        colonna.addView(titolo("Tasti e scrittura"))
+        colonna.addView(titolo("⌨️  Tasti e scrittura"))
         colonna.addView(testo("Disposizione dei tasti"))
         val gruppoDisposizione = RadioGroup(this)
         gruppoDisposizione.orientation = LinearLayout.VERTICAL
         listOf(
             "qerty" to "Qerty (la nostra): w e ? in basso a sinistra, ⌫ accanto a invio, tasti più larghi",
             "qwerty" to "Qwerty (la classica): ⌫ a destra nella terza riga, w dov'è sempre stata",
+            "personale" to "Personale: scegli tu le lettere di ogni riga",
         ).forEach { (id, nome) ->
             val scelta = RadioButton(this)
             scelta.id = View.generateViewId()
             scelta.text = nome
+            stileScelta(scelta)
             scelta.isChecked = prefs.disposizione == id
-            scelta.setOnCheckedChangeListener { _, attivo -> if (attivo) prefs.disposizione = id }
+            scelta.setOnCheckedChangeListener { _, attivo ->
+                if (attivo) {
+                    prefs.disposizione = id
+                    editorPersonale.visibility = if (id == "personale") View.VISIBLE else View.GONE
+                }
+            }
             gruppoDisposizione.addView(scelta, RadioGroup.LayoutParams(RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT))
         }
         colonna.addView(gruppoDisposizione)
+        colonna.addView(editorPersonale)
 
         colonna.addView(testo("Altezza dei tasti"))
         val gruppoAltezza = RadioGroup(this)
@@ -112,6 +155,7 @@ class ImpostazioniActivity : Activity() {
             val scelta = RadioButton(this)
             scelta.id = View.generateViewId()
             scelta.text = nome
+            stileScelta(scelta)
             scelta.isChecked = prefs.altezzaTasti == i
             scelta.setOnCheckedChangeListener { _, attivo -> if (attivo) prefs.altezzaTasti = i }
             gruppoAltezza.addView(scelta, RadioGroup.LayoutParams(0, RadioGroup.LayoutParams.WRAP_CONTENT, 1f))
@@ -147,7 +191,7 @@ class ImpostazioniActivity : Activity() {
         colonna.addView(interruttore("Suono dei tasti", null, prefs.suono) { prefs.suono = it })
 
         // Scorciatoie
-        colonna.addView(titolo("Scorciatoie"))
+        colonna.addView(titolo("⚡  Scorciatoie"))
         colonna.addView(testo(
             "Collega una lettera o una sigla a una parola o a una frase. " +
                 "Quando scrivi la sigla, il testo completo compare con ⚡ sopra la tastiera: toccalo per inserirlo.",
@@ -159,7 +203,7 @@ class ImpostazioniActivity : Activity() {
         aggiornaScorciatoie()
 
         // Lingue
-        colonna.addView(titolo("Lingue"))
+        colonna.addView(titolo("🌍  Lingue"))
         colonna.addView(testo(
             "Attiva più lingue e passa dall'una all'altra con il tasto 🌐 sulla tastiera " +
                 "(tienilo premuto per cambiare tastiera). Ogni lingua ha la sua disposizione dei tasti, " +
@@ -185,6 +229,37 @@ class ImpostazioniActivity : Activity() {
                 .setNegativeButton("Annulla", null)
                 .show()
         })
+        impaginaInCarte(colonna)
+    }
+
+    /** Raggruppa i blocchi tra un titolo e il successivo in carte bianche con angoli arrotondati. */
+    private fun impaginaInCarte(colonna: LinearLayout) {
+        val figli = (0 until colonna.childCount).map { colonna.getChildAt(it) }
+        colonna.removeAllViews()
+        var carta: LinearLayout? = null
+        for (v in figli) {
+            when (v.tag) {
+                "intestazione" -> colonna.addView(v)
+                "titolo" -> {
+                    carta = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(dp(18), dp(6), dp(18), dp(14))
+                        background = GradientDrawable().apply {
+                            setColor(CARTA)
+                            cornerRadius = dp(20).toFloat()
+                        }
+                        elevation = dp(2).toFloat()
+                    }
+                    colonna.addView(
+                        carta,
+                        LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                            .apply { setMargins(0, 0, 0, dp(14)) },
+                    )
+                    carta.addView(v)
+                }
+                else -> carta?.addView(v) ?: colonna.addView(v)
+            }
+        }
     }
 
     override fun onResume() {
@@ -224,6 +299,7 @@ class ImpostazioniActivity : Activity() {
             val sw = Switch(this)
             sw.text = l.nomeItaliano
             sw.textSize = 16f
+            stileInterruttore(sw)
             sw.isChecked = installata && l.codice in attive
             sw.isEnabled = installata
             sw.setOnCheckedChangeListener { v, attiva -> cambiaLinguaAttiva(l, attiva, v as Switch) }
@@ -439,7 +515,9 @@ class ImpostazioniActivity : Activity() {
         tv.text = s
         tv.textSize = 20f
         tv.setTypeface(tv.typeface, Typeface.BOLD)
-        tv.setPadding(0, dp(28), 0, dp(6))
+        tv.setTextColor(ACCENTO_SCURO)
+        tv.setPadding(0, dp(14), 0, dp(8))
+        tv.tag = "titolo"
         return tv
     }
 
@@ -447,7 +525,7 @@ class ImpostazioniActivity : Activity() {
         val tv = TextView(this)
         tv.text = s
         tv.textSize = 14f
-        tv.alpha = 0.75f
+        tv.setTextColor(SECONDARIO)
         tv.setPadding(0, dp(2), 0, dp(8))
         return tv
     }
@@ -456,8 +534,150 @@ class ImpostazioniActivity : Activity() {
         val b = Button(this)
         b.text = s
         b.setAllCaps(false)
+        b.setTextColor(Color.WHITE)
+        b.stateListAnimator = null
+        b.minHeight = dp(48)
+        b.background = StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), pillolaPulsante(ACCENTO_SCURO))
+            addState(intArrayOf(), pillolaPulsante(ACCENTO))
+        }
         b.setOnClickListener { azione() }
         return b
+    }
+
+    private fun pillolaPulsante(colore: Int) = InsetDrawable(
+        GradientDrawable().apply {
+            setColor(colore)
+            cornerRadius = dp(14).toFloat()
+        },
+        dp(2), dp(4), dp(2), dp(4),
+    )
+
+    private fun stileScelta(r: RadioButton) {
+        r.setTextColor(INCHIOSTRO)
+        r.buttonTintList = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(ACCENTO, SECONDARIO),
+        )
+    }
+
+    private fun stileInterruttore(sw: Switch) {
+        sw.setTextColor(INCHIOSTRO)
+        val acceso = intArrayOf(android.R.attr.state_checked)
+        sw.thumbTintList = ColorStateList(arrayOf(acceso, intArrayOf()), intArrayOf(ACCENTO, 0xFFB7C4BD.toInt()))
+        sw.trackTintList = ColorStateList(arrayOf(acceso, intArrayOf()), intArrayOf(0x802E9E6E.toInt(), 0x66B7C4BD))
+    }
+
+    // ---------- Disposizione personale ----------
+
+    private fun costruisciEditorPersonale(): LinearLayout {
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(dp(12), dp(8), dp(12), dp(8))
+        box.background = GradientDrawable().apply {
+            setColor(SFONDO)
+            cornerRadius = dp(14).toFloat()
+        }
+        box.addView(testo(
+            "Scrivi i tasti di ogni riga separati da uno spazio (una lettera per tasto). " +
+                "I numeri sulla prima riga e gli accenti a pressione lunga seguono le lettere. " +
+                "Ogni lingua ha la sua disposizione.",
+        ))
+
+        val attive = Lingue.tutte.filter { it.codice in prefs.lingueAttive }.ifEmpty { listOf(Lingue.italiano) }
+        var corrente = attive.firstOrNull { it.codice == prefs.linguaCorrente } ?: attive.first()
+
+        val campi = List(3) { i ->
+            EditText(this).apply {
+                hint = listOf("Prima riga (in alto)", "Seconda riga", "Terza riga (in basso)")[i]
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                setSingleLine(true)
+                typeface = Typeface.MONOSPACE
+                setTextColor(INCHIOSTRO)
+                setHintTextColor(SECONDARIO)
+                setPadding(dp(12), dp(8), dp(12), dp(8))
+                background = GradientDrawable().apply {
+                    setColor(CARTA)
+                    cornerRadius = dp(10).toFloat()
+                }
+            }
+        }
+        fun carica() {
+            val righe = prefs.righePersonali(corrente.codice) ?: corrente.righe
+            campi.forEachIndexed { i, c -> c.setText(righe[i]) }
+        }
+
+        if (attive.size > 1) {
+            val gruppoLingua = RadioGroup(this)
+            gruppoLingua.orientation = LinearLayout.HORIZONTAL
+            attive.forEach { l ->
+                val r = RadioButton(this)
+                r.id = View.generateViewId()
+                r.text = l.nome
+                stileScelta(r)
+                r.isChecked = l == corrente
+                r.setOnCheckedChangeListener { _, on ->
+                    if (on) {
+                        corrente = l
+                        carica()
+                    }
+                }
+                gruppoLingua.addView(r, RadioGroup.LayoutParams(0, RadioGroup.LayoutParams.WRAP_CONTENT, 1f))
+            }
+            box.addView(gruppoLingua)
+        }
+        campi.forEach { box.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, dp(4), 0, dp(4)) }) }
+
+        box.addView(testo("Dov'è il tasto ⌫ (cancella)?"))
+        val gruppoCanc = RadioGroup(this)
+        listOf(false to "Accanto a invio, in basso a destra", true to "In fondo alla terza riga").forEach { (infondo, nome) ->
+            val r = RadioButton(this)
+            r.id = View.generateViewId()
+            r.text = nome
+            stileScelta(r)
+            r.isChecked = prefs.cancellaPersonaleInFondo == infondo
+            r.setOnCheckedChangeListener { _, on -> if (on) prefs.cancellaPersonaleInFondo = infondo }
+            gruppoCanc.addView(r, RadioGroup.LayoutParams(RadioGroup.LayoutParams.MATCH_PARENT, RadioGroup.LayoutParams.WRAP_CONTENT))
+        }
+        box.addView(gruppoCanc)
+
+        box.addView(pulsante("Salva per questa lingua") {
+            val righe = validaRighe(campi.map { it.text.toString() })
+            if (righe == null) return@pulsante
+            prefs.salvaRighePersonali(corrente.codice, righe)
+            carica()
+            Toast.makeText(this, "Salvata. Riapri la tastiera per vederla.", Toast.LENGTH_LONG).show()
+        })
+        box.addView(pulsante("Ripristina le lettere standard") {
+            prefs.salvaRighePersonali(corrente.codice, null)
+            carica()
+            Toast.makeText(this, "Ripristinate le lettere standard.", Toast.LENGTH_SHORT).show()
+        })
+        carica()
+        return box
+    }
+
+    /** Righe pulite (minuscole, uno spazio tra i tasti) oppure null, dopo aver spiegato l'errore. */
+    private fun validaRighe(testi: List<String>): List<String>? {
+        val pulite = testi.map { it.trim().lowercase().split(Regex("\\s+")).filter { t -> t.isNotEmpty() } }
+        pulite.forEachIndexed { i, tasti ->
+            val nome = listOf("prima", "seconda", "terza")[i]
+            if (tasti.isEmpty()) return errore("La $nome riga è vuota.")
+            if (tasti.size > 12) return errore("La $nome riga ha troppi tasti (al massimo 12).")
+            tasti.firstOrNull { it.codePointCount(0, it.length) != 1 }?.let {
+                return errore("\"$it\" nella $nome riga: ogni tasto è un solo carattere, separato dagli altri da uno spazio.")
+            }
+        }
+        val tutti = pulite.flatten()
+        tutti.groupBy { it }.entries.firstOrNull { it.value.size > 1 }?.let {
+            return errore("\"${it.key}\" compare due volte.")
+        }
+        return pulite.map { it.joinToString(" ") }
+    }
+
+    private fun errore(messaggio: String): List<String>? {
+        Toast.makeText(this, messaggio, Toast.LENGTH_LONG).show()
+        return null
     }
 
     private fun interruttore(nome: String, descrizione: String?, valore: Boolean, cambia: (Boolean) -> Unit): View {
@@ -467,6 +687,7 @@ class ImpostazioniActivity : Activity() {
         val sw = Switch(this)
         sw.text = nome
         sw.textSize = 16f
+        stileInterruttore(sw)
         sw.isChecked = valore
         sw.setOnCheckedChangeListener { _, attivo -> cambia(attivo) }
         box.addView(sw)

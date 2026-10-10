@@ -497,10 +497,11 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
     private fun aggiornaTastiera() {
         val t = tastiera ?: return
         val tastoLingua = lingueAttive.size > 1
+        val config = Layout.configurazione(lingua, prefs)
         val righe = when (pagina) {
-            Pagina.LETTERE -> Layout.lettere(lingua, prefs.numeriSempreVisibili, tastoLingua, prefs.tastieraClassica)
-            Pagina.SIMBOLI -> Layout.simboli(lingua, tastoLingua, prefs.tastieraClassica)
-            Pagina.SIMBOLI2 -> Layout.simboli2(lingua, tastoLingua, prefs.tastieraClassica)
+            Pagina.LETTERE -> Layout.lettere(config.lingua, prefs.numeriSempreVisibili, tastoLingua, config.classica, config.qerty)
+            Pagina.SIMBOLI -> Layout.simboli(lingua, tastoLingua, config.classica)
+            Pagina.SIMBOLI2 -> Layout.simboli2(lingua, tastoLingua, config.classica)
         }
         t.locale = lingua.locale
         if (t.righe !== righe) t.righe = righe

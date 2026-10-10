@@ -111,12 +111,25 @@ class Preferenze(context: Context) {
         get() = sp.getBoolean("numeri_sempre_visibili", true)
         set(valore) = scrivi("numeri_sempre_visibili", valore)
 
-    /** "qerty" = la nostra disposizione (predefinita), "qwerty" = la classica. */
+    /** "qerty" = la nostra disposizione (predefinita), "qwerty" = la classica, "personale" = la tua. */
     var disposizione: String
         get() = sp.getString("disposizione", null) ?: "qerty"
         set(valore) = sp.edit().putString("disposizione", valore).apply()
 
-    val tastieraClassica: Boolean get() = disposizione == "qwerty"
+    /** Le tre righe di lettere scelte da te per una lingua, oppure null per quelle standard. */
+    fun righePersonali(codice: String): List<String>? =
+        sp.getString("righe_personali_$codice", null)?.split("\n")?.takeIf { it.size == 3 }
+
+    fun salvaRighePersonali(codice: String, righe: List<String>?) {
+        sp.edit().apply {
+            if (righe == null) remove("righe_personali_$codice") else putString("righe_personali_$codice", righe.joinToString("\n"))
+        }.apply()
+    }
+
+    /** Nella disposizione personale: ⌫ in fondo alla terza riga (true) o accanto a invio (false). */
+    var cancellaPersonaleInFondo: Boolean
+        get() = sp.getBoolean("canc_personale_in_fondo", false)
+        set(valore) = scrivi("canc_personale_in_fondo", valore)
 
     /** 0 = bassa, 1 = media, 2 = alta */
     var altezzaTasti: Int

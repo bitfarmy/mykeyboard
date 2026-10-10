@@ -137,6 +137,22 @@ object Layout {
     /** Nella Qwerty cancella è l'ultimo tasto della terza riga; nella Qerty lì c'è uno spazio vuoto. */
     private fun fineTerzaRiga(classica: Boolean): Tasto = if (classica) Tasto("⌫", Codici.CANC, 1.5f) else vuoto(1.5f)
 
+    /** La lingua con le righe giuste per la disposizione scelta, e come disegnare ⌫ e ?. */
+    class Configurazione(val lingua: Lingua, val classica: Boolean, val qerty: Boolean)
+
+    fun configurazione(lingua: Lingua, prefs: Preferenze): Configurazione = when (prefs.disposizione) {
+        "qwerty" -> Configurazione(lingua, classica = true, qerty = false)
+        "personale" -> {
+            val righe = prefs.righePersonali(lingua.codice)
+            Configurazione(
+                if (righe != null) lingua.copy(righe = righe) else lingua,
+                classica = prefs.cancellaPersonaleInFondo,
+                qerty = false,
+            )
+        }
+        else -> Configurazione(lingua, classica = false, qerty = true)
+    }
+
     // Sempre la stessa lista per la stessa tastiera: la vista ridisegna solo se cambia davvero
     private val cache = HashMap<String, List<List<Tasto>>>()
 
@@ -145,15 +161,20 @@ object Layout {
      * Con [numeriSulleLettere] i numeri compaiono tenendo premuta la prima riga.
      * Con [classica] la disposizione è la Qwerty di sempre, senza ⌫: la aggiunge [lettere].
      */
-    fun righeLettere(lingua: Lingua, numeriSulleLettere: Boolean = true, classica: Boolean = false): List<List<Tasto>> {
+    fun righeLettere(
+        lingua: Lingua,
+        numeriSulleLettere: Boolean = true,
+        classica: Boolean = false,
+        qerty: Boolean = !classica,
+    ): List<List<Tasto>> {
         val primaOriginale = lingua.righe[0].split(" ")
         // Qerty: la w sta in basso a sinistra, accanto alla z (dove la terza riga non ce l'ha già)
-        val spostaW = !classica && "w" in primaOriginale && "w" !in lingua.righe[2].split(" ")
+        val spostaW = qerty && "w" in primaOriginale && "w" !in lingua.righe[2].split(" ")
         val prima = if (spostaW) primaOriginale - "w" else primaOriginale
         val terza = if (spostaW) listOf("w") + lingua.righe[2].split(" ") else lingua.righe[2].split(" ")
         val seconda = lingua.righe[1].split(" ")
         // Qerty: in basso a sinistra, prima della w, il punto di domanda (tenendo premuto, il punto esclamativo)
-        val terzaConPunto = if (classica) terza else listOf("?") + terza
+        val terzaConPunto = if (qerty) listOf("?") + terza else terza
 
         // Varianti: il numero della posizione originale sulla prima riga, poi le lettere accentate
         val varianti = HashMap<String, String>()
@@ -185,9 +206,15 @@ object Layout {
         return listOf(r1, r2, r3)
     }
 
-    fun lettere(lingua: Lingua, numeriSempreVisibili: Boolean, tastoLingua: Boolean, classica: Boolean = false): List<List<Tasto>> =
-        cache.getOrPut("${lingua.codice}/$numeriSempreVisibili/$tastoLingua/$classica") {
-            val righe = righeLettere(lingua, !numeriSempreVisibili, classica) +
+    fun lettere(
+        lingua: Lingua,
+        numeriSempreVisibili: Boolean,
+        tastoLingua: Boolean,
+        classica: Boolean = false,
+        qerty: Boolean = !classica,
+    ): List<List<Tasto>> =
+        cache.getOrPut("${lingua.codice}/${lingua.righe}/$numeriSempreVisibili/$tastoLingua/$classica/$qerty") {
+            val righe = righeLettere(lingua, !numeriSempreVisibili, classica, qerty) +
                 listOf(rigaFinale(tastoSimboli(classica), lingua.nome, tastoLingua, classica))
             if (numeriSempreVisibili) listOf(rigaNumeri) + righe else righe
         }
