@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.LayerDrawable
@@ -14,7 +13,9 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.text.TextUtils
 import android.view.Gravity
+import android.util.TypedValue
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 
@@ -37,10 +38,10 @@ class BarraSuggerimenti(
 
     private val densita = resources.displayMetrics.density
     private val caselle = List(3) { TextView(context) }
-    private val tastoShift = FrecciaShift(context)
-    private val tastoVirgola = TextView(context)
-    private val tastoApostrofo = TextView(context)
-    private val tastoPunto = TextView(context)
+    private val tastoShift = ImageView(context)
+    private val tastoVirgola = TastoTesto(context)
+    private val tastoApostrofo = TastoTesto(context)
+    private val tastoPunto = TastoTesto(context)
     private val ingranaggio = TextView(context)
     // ⇧ , ' . formano un piccolo blocco a parte, con il suo sfondo
     private val blocco = LinearLayout(context)
@@ -61,11 +62,13 @@ class BarraSuggerimenti(
         }
         blocco.orientation = HORIZONTAL
         blocco.setPadding(dp(4), 0, dp(4), 0)
+        tastoShift.scaleType = ImageView.ScaleType.FIT_CENTER
+        tastoShift.setPadding(dp(5), dp(9), dp(5), dp(11)) // l'icona sta sopra l'ombra del rilievo
         tastoShift.setOnClickListener { onShift() }
         blocco.addView(tastoShift, LayoutParams(dp(28), LayoutParams.MATCH_PARENT))
-        aggiungiTasto(blocco, tastoVirgola, ",", 21) { onTasto(",") }
-        aggiungiTasto(blocco, tastoApostrofo, "'", 21) { onTasto("'") }
-        aggiungiTasto(blocco, tastoPunto, ".", 21) { onTasto(".") }
+        aggiungiPunteggiatura(tastoVirgola, ",") { onTasto(",") }
+        aggiungiPunteggiatura(tastoApostrofo, "'") { onTasto("'") }
+        aggiungiPunteggiatura(tastoPunto, ".") { onTasto(".") }
         // Blocco e ingranaggio con lo stesso margine ai lati, così stanno centrati nel loro spazio
         addView(blocco, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT).apply {
             setMargins(dp(4), 0, dp(2), 0)
@@ -76,10 +79,17 @@ class BarraSuggerimenti(
 
     private fun dp(v: Int) = (v * densita).toInt()
 
+    private fun aggiungiPunteggiatura(tasto: TastoTesto, testo: String, azione: () -> Unit) {
+        tasto.testo = testo
+        tasto.setOnClickListener { azione() }
+        blocco.addView(tasto, LayoutParams(dp(19), LayoutParams.MATCH_PARENT))
+    }
+
     private fun aggiungiTasto(dove: LinearLayout, tv: TextView, testo: String, larghezza: Int, azione: () -> Unit) {
         tv.text = testo
-        tv.textSize = 20f
+        tv.textSize = 22f
         tv.setTypeface(null, Typeface.BOLD)
+        tv.includeFontPadding = false
         tv.gravity = Gravity.CENTER
         // L'ombra del rilievo occupa 2 dp in basso: il simbolo si centra sulla parte alta
         tv.setPadding(0, 0, 0, dp(2))
@@ -134,11 +144,18 @@ class BarraSuggerimenti(
     }
 
     private fun coloraTasti() {
-        tastoVirgola.setTextColor(tema.testo)
-        tastoApostrofo.setTextColor(tema.testo)
-        tastoPunto.setTextColor(tema.testo)
+        tastoVirgola.colore = tema.testo
+        tastoApostrofo.colore = tema.testo
+        tastoPunto.colore = tema.testo
         ingranaggio.setTextColor(tema.testoSecondario)
-        tastoShift.imposta(statoShift, if (statoShift == StatoShift.SPENTO) tema.testo else tema.accento)
+        tastoShift.setImageResource(
+            when (statoShift) {
+                StatoShift.SPENTO -> R.drawable.ic_maiuscole
+                StatoShift.ACCESO -> R.drawable.ic_maiuscole_accese
+                StatoShift.BLOCCATO -> R.drawable.ic_maiuscole_bloccate
+            },
+        )
+        tastoShift.setColorFilter(if (statoShift == StatoShift.SPENTO) tema.testo else tema.accento)
     }
 
     private fun stile(tv: TextView, s: Suggerimento?) {
@@ -198,50 +215,28 @@ class BarraSuggerimenti(
 }
 
 /**
- * La freccia del maiuscolo, disegnata a mano: più grande e più netta del carattere ⇧.
- * Spenta è piena nel colore del testo, accesa nel colore d'accento; bloccata ha anche una barra sotto.
+ * Un segno di punteggiatura grande e marcato. Lo disegna da sé su una riga di base fissa:
+ * la virgola e il punto stanno in basso, l'apostrofo in alto, come sulla tastiera di un computer.
  */
-@SuppressLint("ViewConstructor")
-private class FrecciaShift(context: Context) : View(context) {
-    private val pennello = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        strokeJoin = Paint.Join.ROUND
-    }
-    private val percorso = Path()
-    private var stato = StatoShift.SPENTO
+private class TastoTesto(context: Context) : View(context) {
+    var testo = ""
+    var colore = Color.BLACK
+        set(value) {
+            field = value
+            invalidate()
+        }
 
-    fun imposta(nuovo: StatoShift, colore: Int) {
-        stato = nuovo
-        pennello.color = colore
-        invalidate()
+    private val pennello = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create("sans-serif", Typeface.BOLD)
+        textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 26f, context.resources.displayMetrics)
     }
 
     override fun onDraw(canvas: Canvas) {
-        val d = resources.displayMetrics.density
-        val cx = width / 2f
-        // Il simbolo sta sopra l'ombra del rilievo (2 dp)
-        val cy = (height - 2 * d) / 2f
-        val lato = 20f * d
-        val bloccato = stato == StatoShift.BLOCCATO
-        val su = cy - lato / 2f - if (bloccato) 1.5f * d else 0f
-        val giu = su + lato
-        val spalla = su + lato * 0.5f
-        val gambo = lato * 0.2f
-        pennello.strokeWidth = 1.5f * d
-        percorso.reset()
-        percorso.moveTo(cx, su)
-        percorso.lineTo(cx + lato * 0.5f, spalla)
-        percorso.lineTo(cx + gambo, spalla)
-        percorso.lineTo(cx + gambo, giu)
-        percorso.lineTo(cx - gambo, giu)
-        percorso.lineTo(cx - gambo, spalla)
-        percorso.lineTo(cx - lato * 0.5f, spalla)
-        percorso.close()
-        pennello.style = Paint.Style.FILL_AND_STROKE
-        canvas.drawPath(percorso, pennello)
-        if (bloccato) {
-            pennello.style = Paint.Style.FILL
-            canvas.drawRect(cx - gambo * 1.6f, giu + 3f * d, cx + gambo * 1.6f, giu + 5f * d, pennello)
-        }
+        pennello.color = colore
+        val ombra = 2 * resources.displayMetrics.density // l'ombra del rilievo sta in basso
+        val centro = (height - ombra) / 2f
+        // La riga di base sta sotto il centro di mezza altezza delle maiuscole
+        canvas.drawText(testo, width / 2f, centro + pennello.textSize * 0.3f, pennello)
     }
 }
