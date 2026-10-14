@@ -52,8 +52,8 @@ android {
         // Google Play richiede l'API 36 dal 31 agosto 2026. Da qui in poi è obbligatoria la grafica "edge-to-edge":
         // la tastiera si rimpicciolisce sopra la barra di navigazione (vedi TastieraService.onCreateInputView).
         targetSdk = 36
-        versionCode = 20500
-        versionName = "2.5.0"
+        versionCode = 20600
+        versionName = "2.6.0"
     }
 
     signingConfigs {

@@ -2,13 +2,13 @@
 
 [🇮🇹 Italiano](README.md) · 🇬🇧 **English**
 
-<img src="docs/img/copertina_en.svg" alt="My Keyboard 2.5.0: a Windows 95 style window that types 'freind' and corrects it to 'friend'" width="100%">
+<img src="docs/img/copertina_en.svg" alt="My Keyboard 2.6.0: a Windows 95 style window that types 'freind' and corrects it to 'friend'" width="100%">
 
 # ⌨️ La mia tastiera — *My Keyboard*
 
 **A personal, private, offline Android keyboard — with a '90s heart.**
 
-[![Version](https://img.shields.io/badge/version-2.5.0-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.5.0)
+[![Version](https://img.shields.io/badge/version-2.6.0-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.6.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-008080?style=flat-square&logo=android&logoColor=white)](#-installation)
 [![Kotlin](https://img.shields.io/badge/Kotlin-zero%20dependencies-808080?style=flat-square&logo=kotlin&logoColor=white)](#-project-layout)
 [![Internet](https://img.shields.io/badge/Internet%20permission-NONE-c0c0c0?style=flat-square&labelColor=000000)](#-privacy)
@@ -168,11 +168,11 @@ This trade-off is deliberate: correcting a little less on its own, but getting i
 
 ## 💾 Installation
 
-1. Download **`la-mia-tastiera-2.5.0.apk`** from the latest [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
+1. Download **`la-mia-tastiera-2.6.0.apk`** from the latest [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
 2. Open it on your phone and allow installing from unknown sources.
 3. Open **La mia tastiera** and tap the two buttons: <kbd>1. Abilitala</kbd> *(Enable it)* and <kbd>2. Sceglila come tastiera attiva</kbd> *(Make it the active keyboard)*.
 
-> ⚠️ **Running version 0.1?** 2.5.0 is signed with a new key, so Android won't install it over the old one. Write down your shortcuts, uninstall 0.1 and install this one. From now on updates will install normally.
+> ⚠️ **Running version 0.1?** 2.6.0 is signed with a new key, so Android won't install it over the old one. Write down your shortcuts, uninstall 0.1 and install this one. From now on updates will install normally.
 
 ---
 
@@ -214,7 +214,10 @@ C:\KEYBOARD> gradle assembleRelease        &REM APK signed with your key
 │   ├── 📄 genera_coppie.py ........... builds the word pairs from subtitles
 │   ├── 📁 extra ...................... words added and removed by hand
 │   └── 📁 banco_di_prova ............. autocorrect measurements
-└── 📁 docs/img ....................... the illustrations in this file
+├── 📁 docs/img ....................... the illustrations in this file
+├── 📁 docs/icona ..................... the app icon (generated) and the 512 px one
+├── 📁 docs/play ...................... texts, graphics, screenshots and Google Play instructions
+└── 📁 docs/privacy ................... the privacy policy
 ```
 
 The code and comments are in Italian. For technical details (dictionary format, autocorrect parameters, adding a language) see [`TastieraPersonale/README.md`](TastieraPersonale/README.md).
