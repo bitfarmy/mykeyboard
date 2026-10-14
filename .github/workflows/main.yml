@@ -46,7 +46,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: gradle assembleRelease
+        run: gradle assembleRelease bundleRelease
 
       - name: Cancella la chiave
         if: always()
@@ -56,4 +56,11 @@ jobs:
         with:
           name: la-mia-tastiera
           path: TastieraPersonale/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      # Il pacchetto per Google Play (.aab), firmato con la stessa chiave
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: la-mia-tastiera-aab
+          path: TastieraPersonale/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30

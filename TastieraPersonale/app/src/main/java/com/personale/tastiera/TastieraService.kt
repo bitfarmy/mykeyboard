@@ -4,11 +4,13 @@ import android.content.Context
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.media.AudioManager
+import android.os.Build
 import android.os.SystemClock
 import android.text.InputType
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
@@ -30,6 +32,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
     private var barra: BarraSuggerimenti? = null
     private var tastiera: TastieraView? = null
     private var pannelloEmoji: PannelloEmoji? = null
+    private var radice: LinearLayout? = null
 
     private var pagina = Pagina.LETTERE
     private var shift = StatoShift.SPENTO
@@ -118,7 +121,15 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         aggiornaTastiera()
 
         val radice = LinearLayout(this)
+        this.radice = radice
         radice.orientation = LinearLayout.VERTICAL
+        radice.setBackgroundColor(Temi.perId(prefs.tema).sfondo)
+        // Dall'API 35 la finestra della tastiera arriva fino al bordo dello schermo: si lascia libera la barra dei gesti
+        radice.setOnApplyWindowInsetsListener { v, insets ->
+            val sotto = if (Build.VERSION.SDK_INT >= 30) insets.getInsets(WindowInsets.Type.navigationBars()).bottom else 0
+            v.setPadding(0, 0, 0, sotto)
+            insets
+        }
         radice.addView(b, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(50)))
         radice.addView(t, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         radice.addView(e, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, t.altezzaCalcolata()))
@@ -516,6 +527,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
             2 -> 60f
             else -> 53f
         }
+        radice?.setBackgroundColor(tema.sfondo)
         barra?.applicaTema(tema)
         pannelloEmoji?.applicaTema(tema)
     }

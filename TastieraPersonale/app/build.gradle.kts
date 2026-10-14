@@ -44,13 +44,14 @@ val firma = leggiFirma()
 
 android {
     namespace = "com.personale.tastiera"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.personale.tastiera"
         minSdk = 26
-        // 34 di proposito: evita le regole "edge-to-edge" di Android 15 che complicano le tastiere
-        targetSdk = 34
+        // Google Play richiede l'API 36 dal 31 agosto 2026. Da qui in poi è obbligatoria la grafica "edge-to-edge":
+        // la tastiera si rimpicciolisce sopra la barra di navigazione (vedi TastieraService.onCreateInputView).
+        targetSdk = 36
         versionCode = 20500
         versionName = "2.5.0"
     }

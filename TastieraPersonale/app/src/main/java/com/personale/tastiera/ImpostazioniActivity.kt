@@ -12,12 +12,14 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.StateListDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
@@ -63,6 +65,15 @@ class ImpostazioniActivity : Activity() {
         val scorrimento = ScrollView(this)
         scorrimento.setBackgroundColor(SFONDO)
         scorrimento.addView(colonna)
+        // Dall'API 35 le schermate arrivano fino al bordo: l'ultima riga deve restare sopra la barra dei gesti
+        scorrimento.clipToPadding = false
+        scorrimento.setOnApplyWindowInsetsListener { v, insets ->
+            if (Build.VERSION.SDK_INT >= 30) {
+                val barre = insets.getInsets(WindowInsets.Type.navigationBars() or WindowInsets.Type.displayCutout())
+                v.setPadding(barre.left, 0, barre.right, barre.bottom)
+            }
+            insets
+        }
         setContentView(scorrimento)
         actionBar?.setBackgroundDrawable(ColorDrawable(ACCENTO_SCURO))
 
