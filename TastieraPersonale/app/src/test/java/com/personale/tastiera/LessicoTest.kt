@@ -19,6 +19,7 @@ class LessicoTest {
         fun carica() {
             it = Lessico(Lingue.italiano.locale, Vicinanza.da(Layout.righeLettere(Lingue.italiano)))
             File("src/main/assets/parole_it.txt").bufferedReader().useLines { righe -> it.caricaDizionario(righe) }
+            File("src/main/assets/coppie_it.txt").bufferedReader().useLines { righe -> it.caricaCoppieBase(righe) }
             it.prepara()
         }
 
@@ -38,6 +39,37 @@ class LessicoTest {
         assertEquals("città", sicura("citta"))
         assertEquals("Perché", sicura("Perche"))
         assertEquals("PERCHÉ", sicura("PERCHE"))
+    }
+
+    @Test fun elisioni() {
+        assertEquals("all'alba", it.correggiAccenti("allalba"))
+        assertEquals("l'altro", it.correggiAccenti("laltro"))
+        assertEquals("All'alba", it.correggiAccenti("Allalba"))
+        assertNull(it.correggiAccenti("alba"))
+    }
+
+    @Test fun elisioniCompletate() {
+        assertTrue(it.completamenti("all'alb", 3).contains("all'alba"))
+        assertTrue(it.completamenti("l'al", 3).contains("l'altro"))
+    }
+
+    @Test fun contesto() {
+        val l = piccolo(Lingue.italiano, "ne 100\nce 100\nho 50\nuno 40\nmare 30\n")
+        // Senza contesto vince la parola più frequente; con il contesto imparato vince l'altra
+        assertEquals("ne", l.completamenti("n", 1).firstOrNull())
+        repeat(5) { l.imparaCoppia("uno", "mare"); l.imparaCoppia("ho", "mare") }
+        assertEquals(listOf("mare"), l.successive("uno", 3))
+        assertTrue(l.successive("ne", 3).isEmpty())
+        assertEquals("mare", l.completamenti("ma", 1, "uno").firstOrNull())
+    }
+
+    @Test fun coppieDelCorpus() {
+        assertTrue(it.successive("un", 3).containsAll(listOf("altro", "uomo")))
+        assertTrue("lo" in it.successive("non", 5))
+        // Le parole con l'apostrofo usano la parte dopo l'apostrofo
+        assertTrue(it.successive("dell'uomo", 3).isNotEmpty() == it.successive("uomo", 3).isNotEmpty())
+        // Il contesto sceglie fra due parole ugualmente scritte male: "ho ft" → fatto, non "fate"
+        assertEquals("fatto", it.completamenti("fa", 3, "ho").first())
     }
 
     @Test fun apostrofi() {

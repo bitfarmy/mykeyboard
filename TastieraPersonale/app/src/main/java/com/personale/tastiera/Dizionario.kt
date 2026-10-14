@@ -47,14 +47,25 @@ class Dizionario private constructor(private val ctx: Context, val lingua: Lingu
         private fun fileImparate(context: Context, codice: String) =
             File(context.filesDir, "parole_imparate_$codice.txt")
 
+        private fun fileCoppie(context: Context, codice: String) =
+            File(context.filesDir, "coppie_imparate_$codice.txt")
+
         fun cancellaTutteLeImparate(context: Context) {
             synchronized(istanze) { istanze.values.forEach { it.cancellaImparate() } }
-            thread { synchronized(Companion) { Lingue.tutte.forEach { fileImparate(context, it.codice).delete() } } }
+            thread {
+                synchronized(Companion) {
+                    Lingue.tutte.forEach {
+                        fileImparate(context, it.codice).delete()
+                        fileCoppie(context, it.codice).delete()
+                    }
+                }
+            }
         }
     }
 
     private var lessico = Lessico(lingua.locale)
     private val file = fileImparate(ctx, lingua.codice)
+    private val fileDelleCoppie = fileCoppie(ctx, lingua.codice)
     private val principale = Handler(Looper.getMainLooper())
     private val inAttesa = ArrayList<() -> Unit>()
     private val imparateNelFrattempo = HashMap<String, Int>()
@@ -96,6 +107,20 @@ class Dizionario private constructor(private val ctx: Context, val lingua: Lingu
             } catch (e: Exception) {
                 // File rovinato: ripartiamo da zero.
             }
+            try {
+                // Le coppie di parole del corpus (solo per le lingue che le hanno incluse)
+                ctx.assets.open("coppie_${lingua.codice}.txt").bufferedReader(Charsets.UTF_8)
+                    .useLines { nuovo.caricaCoppieBase(it) }
+            } catch (e: Exception) {
+                // Nessun file: restano le coppie imparate da te.
+            }
+            try {
+                synchronized(Companion) {
+                    if (fileDelleCoppie.exists()) fileDelleCoppie.bufferedReader(Charsets.UTF_8).useLines { nuovo.caricaCoppie(it) }
+                }
+            } catch (e: Exception) {
+                // File rovinato: ripartiamo da zero.
+            }
             nuovo.prepara()
 
             principale.post {
@@ -120,6 +145,7 @@ class Dizionario private constructor(private val ctx: Context, val lingua: Lingu
         if (!modificato || !pronto) return
         modificato = false
         val copia = lessico.paroleImparate()
+        val coppie = lessico.coppieImparate()
         thread(name = "salva-parole-${lingua.codice}") {
             synchronized(Companion) {
                 try {
@@ -133,6 +159,14 @@ class Dizionario private constructor(private val ctx: Context, val lingua: Lingu
                         }
                     }
                     temporaneo.renameTo(file)
+                    val temporaneoCoppie = File(fileDelleCoppie.parentFile, fileDelleCoppie.name + ".tmp")
+                    temporaneoCoppie.bufferedWriter(Charsets.UTF_8).use { out ->
+                        coppie.forEach { (a, b, v) ->
+                            out.write("$a\t$b\t$v")
+                            out.newLine()
+                        }
+                    }
+                    temporaneoCoppie.renameTo(fileDelleCoppie)
                 } catch (e: Exception) {
                     // Riproveremo al prossimo salvataggio.
                 }
@@ -160,8 +194,16 @@ class Dizionario private constructor(private val ctx: Context, val lingua: Lingu
         modificato = true
     }
 
+    /** [prima] = la parola scritta subito prima: aiuta a scegliere fra più parole possibili. */
+    fun imparaCoppia(prima: String, dopo: String) {
+        if (!pronto) return
+        lessico.imparaCoppia(prima, dopo)
+        modificato = true
+    }
+
     fun conosciuta(parola: String) = lessico.conosciuta(parola)
-    fun completamenti(scritto: String, quanti: Int) = lessico.completamenti(scritto, quanti)
-    fun correggiAccenti(scritta: String) = lessico.correggiAccenti(scritta)
-    fun correzioni(scritta: String, quante: Int = 2) = lessico.correzioni(scritta, quante)
+    fun completamenti(scritto: String, quanti: Int, prima: String? = null) = lessico.completamenti(scritto, quanti, prima)
+    fun successive(prima: String, quanti: Int) = lessico.successive(prima, quanti)
+    fun correggiAccenti(scritta: String, prima: String? = null) = lessico.correggiAccenti(scritta, prima)
+    fun correzioni(scritta: String, quante: Int = 2, prima: String? = null) = lessico.correzioni(scritta, quante, prima)
 }

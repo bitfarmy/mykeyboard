@@ -70,6 +70,14 @@ Su un banco di prova di 3.000 errori di battitura e 3.000 parole giuste ma rare 
 | Refusi corretti nel modo sbagliato | 12,5% | 1,4% |
 | Parole giuste ma rare rovinate | 31,5% | 21,7% |
 
+### Il contesto (coppie di parole)
+
+La parola scritta subito prima, se non c'è punteggiatura in mezzo, pesa nella scelta fra più correzioni e nei completamenti, e a parola vuota la barra propone quelle che di solito seguono.
+
+- `assets/coppie_it.txt` è generato da `dizionari/genera_coppie.py` dai sottotitoli OpenSubtitles 2018 (CC BY-SA 4.0): una riga `parola<TAB>seguente:pmi ...`, dal seguente più frequente, con pmi = 100·ln(P(seguente | parola) / P(seguente)).
+- Le coppie che scrivi tu stanno solo sul telefono (`files/coppie_imparate_<lingua>.txt`, escluse dai backup) e pesano di più. Non si imparano nei campi password, in incognito e nei campi che chiedono "niente suggerimenti".
+- Per misurarle: `COPPIE_BANCO=cartella gradle testDebugUnitTest --tests '*CoppieBancoTest.misura' -i`, dove la cartella contiene `coppie_it.txt` e `riservato_it.txt` (il 2% del corpus tenuto da parte dallo script). Sul testo riservato la parola giusta è fra le prime tre previste nel 21,8% dei casi, e i refusi corretti da soli salgono dal 75,1% al 77,6% (corretti nel modo sbagliato: 3,2%, invariato).
+
 I test del correttore sono in `app/src/test` e girano a ogni compilazione su GitHub (`gradle testDebugUnitTest`).
 
 ## Ottenere l'APK senza Android Studio (GitHub)

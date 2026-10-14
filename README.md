@@ -2,13 +2,13 @@
 
 🇮🇹 **Italiano** · [🇬🇧 English](README.en.md)
 
-<img src="docs/img/copertina.svg" alt="La mia tastiera 2.4.0: una finestra in stile Windows 95 che scrive 'perche' e lo corregge in 'perché'" width="100%">
+<img src="docs/img/copertina.svg" alt="La mia tastiera 2.5.0: una finestra in stile Windows 95 che scrive 'perche' e lo corregge in 'perché'" width="100%">
 
 # ⌨️ La mia tastiera
 
 **Una tastiera Android personale, privata e offline — con un cuore anni '90.**
 
-[![Versione](https://img.shields.io/badge/versione-2.4.0-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.4.0)
+[![Versione](https://img.shields.io/badge/versione-2.5.0-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.5.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-008080?style=flat-square&logo=android&logoColor=white)](#-installazione)
 [![Kotlin](https://img.shields.io/badge/Kotlin-senza%20librerie-808080?style=flat-square&logo=kotlin&logoColor=white)](#-struttura-del-progetto)
 [![Internet](https://img.shields.io/badge/permesso%20Internet-NESSUNO-c0c0c0?style=flat-square&labelColor=000000)](#-privacy)
@@ -64,7 +64,7 @@ Una tastiera vede **tutto** quello che scrivi: messaggi, ricerche, indirizzi. Pe
 
 - 🚫 **Nessun permesso Internet.** Non è una promessa: è Android stesso che le impedisce di collegarsi. Il manifest non chiede nessun permesso.
 - 🔐 **Password e incognito.** Nei campi password e quando un'app chiede la modalità incognito non impara nulla, e nemmeno da nomi, indirizzi e filtri di ricerca.
-- 💽 **Niente backup nel cloud.** Le parole imparate e le scorciatoie sono escluse dal backup di Google e dal trasferimento verso un nuovo telefono.
+- 💽 **Niente backup nel cloud.** Le parole imparate, le coppie di parole e le scorciatoie sono escluse dal backup di Google e dal trasferimento verso un nuovo telefono.
 - 🧩 **Nessuna libreria esterna.** Solo Android e Kotlin: niente statistiche, pubblicità o raccolta errori nascosta in una dipendenza.
 - ✅ **Dizionari verificati.** Un dizionario importato viene accettato solo se la sua impronta SHA-256 coincide con quella scritta nell'app.
 - ✍️ **Aggiornamenti firmati.** L'APK è firmato con una chiave personale che non sta nel codice: nessun altro può pubblicare un "aggiornamento" che Android accetti.
@@ -140,6 +140,9 @@ C:\TASTIERA> correggi "tuto"
 - 🎯 **Sotto il 90% propone e basta**: la correzione evidenziata nella barra è sempre quella che <kbd>spazio</kbd> applicherà.
 - 🏷️ **I nomi sono rispettati**: una parola con la maiuscola a metà frase (*Marta*, *Fiat*) non viene corretta da sola.
 - ↩️ **Ti sei pentito?** <kbd>⌫</kbd> subito dopo una correzione la annulla, e in quel campo non la ripropone. Se la annulli una seconda volta, anche in un altro momento, la tastiera impara la tua parola.
+- 🔗 **Il contesto conta**: la parola che hai appena scritto aiuta a scegliere fra due correzioni, e a parola vuota la barra propone quella che di solito segue (*ho* → *detto, fatto, bisogno*). Le coppie vengono dai sottotitoli (`assets/coppie_it.txt`) e da quello che scrivi tu: le tue pesano di più e restano sul telefono.
+- ʼ **Apostrofi**: *allalba → all'alba*, *laltro → l'altro*, e dopo l'apostrofo si completa la parola (*all'alb → all'alba*).
+- 🔎 **Ricerche e campi senza suggerimenti**: la barra si vede anche dove l'app chiede «niente suggerimenti» (come la ricerca di Chrome), ma lì non corregge da sola e non impara.
 
 <details>
 <summary><b>Dettagli &gt;&gt;</b> — come sono stati misurati i numeri</summary>
@@ -163,11 +166,11 @@ La scelta è voluta: correggere un po' meno da sola, ma sbagliare quasi nove vol
 
 ## 💾 Installazione
 
-1. Scarica **`la-mia-tastiera-2.4.0.apk`** dall'ultima [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
+1. Scarica **`la-mia-tastiera-2.5.0.apk`** dall'ultima [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
 2. Aprilo sul telefono e permetti l'installazione da origini sconosciute.
 3. Apri **La mia tastiera** e tocca i due pulsanti: <kbd>1. Abilitala</kbd> e <kbd>2. Sceglila come tastiera attiva</kbd>.
 
-> ⚠️ **Hai la versione 0.1?** La 2.4.0 è firmata con una chiave nuova, quindi Android non la installa sopra la vecchia. Annota le tue scorciatoie, disinstalla la 0.1 e installa questa. Da qui in poi gli aggiornamenti si installeranno normalmente.
+> ⚠️ **Hai la versione 0.1?** La 2.5.0 è firmata con una chiave nuova, quindi Android non la installa sopra la vecchia. Annota le tue scorciatoie, disinstalla la 0.1 e installa questa. Da qui in poi gli aggiornamenti si installeranno normalmente.
 
 ---
 
@@ -206,6 +209,7 @@ C:\TASTIERA> gradle assembleRelease        &REM APK firmato con la tua chiave
 │   └── 📄 README.md .................. guida tecnica dettagliata
 ├── 📁 dizionari
 │   ├── 📄 genera_tutti.sh ............ rigenera dizionari e catalogo
+│   ├── 📄 genera_coppie.py ........... ricava le coppie di parole dai sottotitoli
 │   ├── 📁 extra ...................... parole aggiunte e tolte a mano
 │   └── 📁 banco_di_prova ............. misura del correttore
 └── 📁 docs/img ....................... le illustrazioni di questo file
@@ -257,6 +261,7 @@ Aggiungerne una è semplice: una voce in <code>Layout.kt</code> (disposizione de
 ## 📜 Licenze e crediti
 
 - **Dizionari**: CC BY-SA 4.0. Le frequenze vengono da [FrequencyWords](https://github.com/hermitdave/FrequencyWords) di Hermit Dave (OpenSubtitles 2018); l'ortografia è verificata con i dizionari Hunspell di LibreOffice (tramite [wooorm/dictionaries](https://github.com/wooorm/dictionaries)).
+- **Coppie di parole** (`assets/coppie_it.txt`): CC BY-SA 4.0, ricavate dagli stessi sottotitoli OpenSubtitles 2018 con `dizionari/genera_coppie.py`. Servono a prevedere la parola successiva e a scegliere meglio fra due correzioni; quello che scrivi tu resta sul telefono e pesa di più.
 - **Codice**: progetto personale di [@bitfarmy](https://github.com/bitfarmy).
 - **Estetica**: un omaggio a Windows 95. Le illustrazioni sono SVG disegnati a mano dallo script `docs/img/genera_svg.py`, senza immagini o font esterni.
 

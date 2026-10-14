@@ -2,13 +2,13 @@
 
 [🇮🇹 Italiano](README.md) · 🇬🇧 **English**
 
-<img src="docs/img/copertina_en.svg" alt="My Keyboard 2.4.0: a Windows 95 style window that types 'freind' and corrects it to 'friend'" width="100%">
+<img src="docs/img/copertina_en.svg" alt="My Keyboard 2.5.0: a Windows 95 style window that types 'freind' and corrects it to 'friend'" width="100%">
 
 # ⌨️ La mia tastiera — *My Keyboard*
 
 **A personal, private, offline Android keyboard — with a '90s heart.**
 
-[![Version](https://img.shields.io/badge/version-2.4.0-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.4.0)
+[![Version](https://img.shields.io/badge/version-2.5.0-000080?style=flat-square)](https://github.com/bitfarmy/mykeyboard/releases/tag/v2.5.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-008080?style=flat-square&logo=android&logoColor=white)](#-installation)
 [![Kotlin](https://img.shields.io/badge/Kotlin-zero%20dependencies-808080?style=flat-square&logo=kotlin&logoColor=white)](#-project-layout)
 [![Internet](https://img.shields.io/badge/Internet%20permission-NONE-c0c0c0?style=flat-square&labelColor=000000)](#-privacy)
@@ -66,7 +66,7 @@ A keyboard sees **everything** you type: messages, searches, addresses. That is 
 
 - 🚫 **No Internet permission.** Not a promise: Android itself prevents the keyboard from connecting. The manifest requests no permissions at all.
 - 🔐 **Passwords and incognito.** In password fields, and whenever an app asks for incognito mode, nothing is learned — nor from name, address or search-filter fields.
-- 💽 **No cloud backups.** Learned words and shortcuts are excluded from Google backups and from transfers to a new phone.
+- 💽 **No cloud backups.** Learned words, word pairs and shortcuts are excluded from Google backups and from transfers to a new phone.
 - 🧩 **No third-party libraries.** Only Android and Kotlin: no analytics, ads or crash reporting hidden in a dependency.
 - ✅ **Verified dictionaries.** An imported dictionary is accepted only if its SHA-256 fingerprint matches the one built into the app.
 - ✍️ **Signed updates.** The APK is signed with a personal key that is not in the source code: nobody else can publish an "update" that Android would accept.
@@ -142,6 +142,9 @@ C:\KEYBOARD> correct "freind"
 - 🎯 **Below 90% it only suggests**: the highlighted correction in the bar is always exactly what <kbd>space</kbd> will apply.
 - 🏷️ **Names are respected**: a capitalised word in the middle of a sentence (*Marta*, *Fiat*) is never corrected automatically.
 - ↩️ **Changed your mind?** <kbd>⌫</kbd> right after a correction undoes it, and it won't be suggested again in that field. Undo it a second time, even later, and the keyboard learns your word.
+- 🔗 **Context matters**: the word you just typed helps choose between two corrections, and on an empty word the bar offers what usually comes next (*ho* → *detto, fatto, bisogno*). The pairs come from subtitles (`assets/coppie_it.txt`) and from what you type: yours weigh more and stay on the phone.
+- ʼ **Apostrophes**: *allalba → all'alba*, *laltro → l'altro*, and the word after an apostrophe is completed (*all'alb → all'alba*).
+- 🔎 **Search and no-suggestion fields**: the bar also shows where an app asks for "no suggestions" (like Chrome's search box), but it never auto-corrects or learns there.
 
 <details>
 <summary><b>Details &gt;&gt;</b> — how the numbers were measured</summary>
@@ -165,11 +168,11 @@ This trade-off is deliberate: correcting a little less on its own, but getting i
 
 ## 💾 Installation
 
-1. Download **`la-mia-tastiera-2.4.0.apk`** from the latest [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
+1. Download **`la-mia-tastiera-2.5.0.apk`** from the latest [release](https://github.com/bitfarmy/mykeyboard/releases/latest).
 2. Open it on your phone and allow installing from unknown sources.
 3. Open **La mia tastiera** and tap the two buttons: <kbd>1. Abilitala</kbd> *(Enable it)* and <kbd>2. Sceglila come tastiera attiva</kbd> *(Make it the active keyboard)*.
 
-> ⚠️ **Running version 0.1?** 2.4.0 is signed with a new key, so Android won't install it over the old one. Write down your shortcuts, uninstall 0.1 and install this one. From now on updates will install normally.
+> ⚠️ **Running version 0.1?** 2.5.0 is signed with a new key, so Android won't install it over the old one. Write down your shortcuts, uninstall 0.1 and install this one. From now on updates will install normally.
 
 ---
 
@@ -208,6 +211,7 @@ C:\KEYBOARD> gradle assembleRelease        &REM APK signed with your key
 │   └── 📄 README.md .................. detailed technical guide (Italian)
 ├── 📁 dizionari
 │   ├── 📄 genera_tutti.sh ............ rebuilds dictionaries and catalogue
+│   ├── 📄 genera_coppie.py ........... builds the word pairs from subtitles
 │   ├── 📁 extra ...................... words added and removed by hand
 │   └── 📁 banco_di_prova ............. autocorrect measurements
 └── 📁 docs/img ....................... the illustrations in this file
@@ -259,6 +263,7 @@ Adding one is simple: an entry in <code>Layout.kt</code> (key layout and accents
 ## 📜 Licences and credits
 
 - **Dictionaries**: CC BY-SA 4.0. Frequencies come from Hermit Dave's [FrequencyWords](https://github.com/hermitdave/FrequencyWords) (OpenSubtitles 2018); spelling is checked against LibreOffice's Hunspell dictionaries (via [wooorm/dictionaries](https://github.com/wooorm/dictionaries)).
+- **Word pairs** (`assets/coppie_it.txt`): CC BY-SA 4.0, derived from the same OpenSubtitles 2018 subtitles with `dizionari/genera_coppie.py`. They predict the next word and help choose between two corrections; what you type stays on the phone and weighs more.
 - **Code**: a personal project by [@bitfarmy](https://github.com/bitfarmy).
 - **Look & feel**: a tribute to Windows 95. The illustrations are hand-drawn SVGs generated by `docs/img/genera_svg.py`, with no external images or fonts.
 

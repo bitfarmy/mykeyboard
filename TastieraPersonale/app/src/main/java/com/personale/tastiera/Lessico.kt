@@ -74,6 +74,18 @@ class Lessico(
             return m
         }
 
+        private val VOCALI = "aeiouàèéìíòóùúhâêîôû"
+        private val PREFISSI_ELISIONE_IT = setOf(
+            "l", "un", "dell", "all", "dall", "sull", "nell", "coll", "quell", "quest", "c", "d", "m", "t", "s", "v",
+            "anch", "com", "dov", "cos", "nient", "senz", "bell", "buon", "mezz", "tutt", "gl",
+        )
+        private val PREFISSI_ELISIONE_FR = setOf("l", "d", "j", "qu", "n", "m", "t", "s", "c", "jusqu", "lorsqu", "puisqu")
+
+        private const val MASSIMO_COPPIE = 30_000
+        private const val MASSIMO_PMI = 500  // oltre e^5 volte più probabile non conta di più
+        private const val PESO_PMI = 100     // in percentuale: 100 = il contesto pesa quanto la frequenza (ln P(b|a) = ln P(b) + pmi)
+        private const val BONUS_COPPIA = 300 // ≈ una parola usata 2 volte: 300·ln(1+n), come i bonus delle parole tue
+
         private fun punteggioBase(conteggio: Long) = (100 * ln(conteggio.toDouble() + 1)).toInt()
 
         /** Le parole che usi salgono in classifica: 2 volte ≈ una parola comune, 20 volte ≈ molto comune. */
@@ -84,6 +96,12 @@ class Lessico(
     private val forme = HashMap<String, String>()  // minuscola → come si scrive, se diverso (i → I, haus → Haus)
     private val utente = HashMap<String, Int>()    // minuscola → quante volte l'hai usata
     private val daTogliere = HashSet<String>()
+    private val coppie = HashMap<String, HashMap<String, Int>>() // parola → (parola che l'ha seguita → quante volte), solo tue
+    private var numeroCoppie = 0
+    private val coppieBase = HashMap<String, Seguenti>()          // dal corpus incluso: parola → parole che la seguono
+
+    /** Le parole che seguono più spesso una parola, dalla più frequente, con quanto il contesto le rende più probabili. */
+    private class Seguenti(val parole: Array<String>, val pmi: IntArray)
     private var indice = ArrayList<Voce>()         // ordinato per chiave normalizzata, poi parola
     private val perLunghezza = HashMap<Int, ArrayList<Voce>>() // solo parole senza apostrofo
     private var conApostrofo = HashMap<String, MutableList<String>>() // "ce" → [c'è]
@@ -164,8 +182,105 @@ class Lessico(
 
     fun paroleImparate(): Map<String, Int> = HashMap(utente)
 
+    // ---------- Coppie di parole (contesto) ----------
+
+    /** Righe "parola<TAB>seguente:pmi seguente:pmi ..." del corpus incluso (assets/coppie_it.txt). */
+    fun caricaCoppieBase(righe: Sequence<String>) {
+        for (riga in righe) {
+            if (riga.isBlank() || riga.startsWith("#")) continue
+            val (prima, resto) = riga.split('\t').takeIf { it.size == 2 } ?: continue
+            val parole = ArrayList<String>()
+            val pmi = ArrayList<Int>()
+            for (t in resto.split(' ')) {
+                val k = t.lastIndexOf(':')
+                val n = if (k > 0) t.substring(k + 1).toIntOrNull() else null
+                if (n != null) {
+                    parole.add(t.substring(0, k))
+                    pmi.add(n)
+                }
+            }
+            if (parole.isNotEmpty()) coppieBase[prima] = Seguenti(parole.toTypedArray(), pmi.toIntArray())
+        }
+    }
+
+    private fun seguentiBase(prima: String): Seguenti? =
+        coppieBase[prima] ?: if ('\'' in prima) coppieBase[prima.substringAfterLast('\'')] else null
+
+    /** Righe "prima<TAB>dopo<TAB>volte", come le scrive [coppieImparate]. */
+    fun caricaCoppie(righe: Sequence<String>) {
+        for (riga in righe) {
+            val parti = riga.split('\t')
+            val volte = parti.getOrNull(2)?.toIntOrNull() ?: continue
+            if (parti.size == 3 && volte > 0) aggiungiCoppia(parti[0], parti[1], volte)
+        }
+    }
+
+    fun coppieImparate(): List<Triple<String, String, Int>> =
+        coppie.flatMap { (a, m) -> m.map { (b, n) -> Triple(a, b, n) } }
+
+    /** Ricorda che [dopo] ha seguito [prima]: serve a scegliere fra due correzioni e a prevedere la parola successiva. */
+    fun imparaCoppia(prima: String, dopo: String) {
+        val a = chiaveCoppia(prima) ?: return
+        val b = chiaveCoppia(dopo) ?: return
+        aggiungiCoppia(a, b, 1)
+        versione++
+    }
+
+    private fun chiaveCoppia(parola: String): String? {
+        val w = parola.lowercase(locale).replace('’', '\'')
+        return w.takeIf { it.length in 1..30 && eParola(it) && (base.containsKey(it) || (utente[it] ?: 0) >= 2) }
+    }
+
+    private fun aggiungiCoppia(a: String, b: String, volte: Int) {
+        val m = coppie.getOrPut(a) { HashMap() }
+        if (m.put(b, (m[b] ?: 0) + volte) == null) numeroCoppie++
+        if (numeroCoppie > MASSIMO_COPPIE) sfoltisciCoppie()
+    }
+
+    /** Si tengono le coppie viste più di una volta; se non basta, le più frequenti. */
+    private fun sfoltisciCoppie() {
+        var soglia = 2
+        while (numeroCoppie > MASSIMO_COPPIE * 3 / 4) {
+            val s = soglia
+            coppie.values.forEach { m -> m.values.removeAll { it < s } }
+            coppie.values.removeAll { it.isEmpty() }
+            numeroCoppie = coppie.values.sumOf { it.size }
+            soglia *= 2
+        }
+    }
+
+    /** Quanto pesa, nel punteggio di [parola], l'averla già vista dopo [prima]. */
+    private fun bonusCoppia(prima: String?, parola: String): Int {
+        if (prima == null) return 0
+        var bonus = 0
+        coppie[prima]?.get(parola)?.let { bonus += (BONUS_COPPIA * ln(1.0 + min(it, 100))).toInt() }
+        seguentiBase(prima)?.let { s ->
+            val i = s.parole.indexOf(parola)
+            if (i >= 0) bonus += min(s.pmi[i], MASSIMO_PMI) * PESO_PMI / 100
+        }
+        return bonus
+    }
+
+    /** Le parole che più spesso hanno seguito [prima] (anche solo quelle che iniziano con [scritto]). */
+    fun successive(prima: String, quanti: Int, scritto: String = ""): List<String> {
+        val a = prima.lowercase(locale).replace('’', '\'')
+        val chiave = normalizza(scritto, locale)
+        val minimo = if (chiave.isEmpty()) 2 else 1 // senza lettere scritte serve più di un'occorrenza
+        val minuscolo = scritto.lowercase(locale)
+        fun adatta(w: String) = w != minuscolo && conosciuta(w) && normalizza(w, locale).startsWith(chiave)
+        // Prima quello che hai scritto tu, poi quello che di solito segue nella lingua
+        val tue = coppie[a]?.entries.orEmpty()
+            .filter { it.value >= minimo && adatta(it.key) }
+            .sortedByDescending { it.value }
+            .map { it.key }
+        val dellaLingua = seguentiBase(a)?.parole.orEmpty().filter { adatta(it) }
+        return (tue + dellaLingua).distinct().take(quanti).map { forma(it) }
+    }
+
     fun cancellaImparate() {
         utente.clear()
+        coppie.clear()
+        numeroCoppie = 0
         indice.removeAll { !base.containsKey(it.parola) }
         perLunghezza.values.forEach { lista -> lista.removeAll { !base.containsKey(it.parola) } }
         versione++
@@ -189,9 +304,10 @@ class Lessico(
     }
 
     /** Fino a [quanti] parole che iniziano con [scritto], dalla più probabile. */
-    fun completamenti(scritto: String, quanti: Int): List<String> {
+    fun completamenti(scritto: String, quanti: Int, prec: String? = null): List<String> {
         val chiave = normalizza(scritto, locale)
         if (chiave.isEmpty()) return emptyList()
+        val precNorm = prec?.lowercase(locale)?.replace('’', '\'')
         val minuscolo = scritto.lowercase(locale).replace('’', '\'')
         val migliori = ArrayList<String>(quanti + 1)
 
@@ -199,9 +315,9 @@ class Lessico(
         while (i < indice.size && indice[i].chiave.startsWith(chiave)) {
             val p = indice[i].parola
             if (p != minuscolo && conosciuta(p)) {
-                val punti = punteggio(p)
+                val punti = punteggio(p) + bonusCoppia(precNorm, p)
                 var pos = migliori.size
-                while (pos > 0 && punteggio(migliori[pos - 1]) < punti) pos--
+                while (pos > 0 && punteggio(migliori[pos - 1]) + bonusCoppia(precNorm, migliori[pos - 1]) < punti) pos--
                 if (pos < quanti) {
                     migliori.add(pos, p)
                     if (migliori.size > quanti) migliori.removeAt(migliori.size - 1)
@@ -209,14 +325,33 @@ class Lessico(
             }
             i++
         }
-        return migliori.map { adattaMaiuscole(scritto, forma(it)) }
+        val risultato = migliori.map { adattaMaiuscole(scritto, forma(it)) }.toMutableList()
+        // "all'al" → "all'alba": l'elisione si completa con la parola che segue
+        val k = minuscolo.indexOf('\'')
+        if (risultato.size < quanti && k in 1 until minuscolo.length - 1 && minuscolo.length - k > 1) {
+            val resto = scritto.substring(k + 1)
+            val inizio = scritto.substring(0, k + 1)
+            if (minuscolo.substring(0, k) in prefissiElisione() && resto[0].lowercaseChar() in VOCALI) {
+                for (c in completamenti(resto, quanti, prec)) {
+                    val voce = inizio + c
+                    if (risultato.size < quanti && risultato.none { it.equals(voce, true) }) risultato.add(voce)
+                }
+            }
+        }
+        return risultato
+    }
+
+    private fun prefissiElisione() = when (locale.language) {
+        "it" -> PREFISSI_ELISIONE_IT
+        "fr" -> PREFISSI_ELISIONE_FR
+        else -> emptySet()
     }
 
     /**
      * Solo accenti, apostrofi e maiuscole obbligatorie: "perche" → "perché", "c'e" → "c'è",
      * "po" → "po'", "i" → "I" (inglese), "haus" → "Haus" (tedesco). Mai cambi di lettere.
      */
-    fun correggiAccenti(scritta: String): String? {
+    fun correggiAccenti(scritta: String, prec: String? = null): String? {
         val w = scritta.lowercase(locale).replace('’', '\'')
         if (!eParola(w) || indice.isEmpty()) return null
         if (conosciuta(w)) {
@@ -237,8 +372,23 @@ class Lessico(
         var validi = candidati.filter { it != w && conosciuta(it) }
         // Hai messo un accento (perchè, cosí): l'accento giusto è più probabile di nessun accento
         if (haAccenti(w) && validi.any { haAccenti(it) }) validi = validi.filter { haAccenti(it) }
-        val migliore = validi.maxByOrNull { punteggio(it) } ?: return null
+        val migliore = validi.maxByOrNull { punteggio(it) + bonusCoppia(prec, it) } ?: return elisione(scritta, w)
         return adattaMaiuscole(scritta, forma(migliore))
+    }
+
+    /** "allalba" → "all'alba": parola sconosciuta che è un'elisione (articolo, preposizione) + parola che inizia per vocale. */
+    private fun elisione(scritta: String, w: String): String? {
+        if ('\'' in w || w.length < 4) return null
+        val prefissi = prefissiElisione().ifEmpty { return null }
+        var migliore: String? = null
+        for (n in 1..w.length - 2) {
+            val resto = w.substring(n)
+            if (w.substring(0, n) !in prefissi || resto[0] !in VOCALI || !conosciuta(resto)) continue
+            if (migliore == null || punteggio(resto) > punteggio(migliore.substring(n + 1))) {
+                migliore = w.substring(0, n) + "'" + resto
+            }
+        }
+        return migliore?.let { adattaMaiuscole(scritta, it) }
     }
 
     /** La correzione migliore per [scritta], oppure null se la parola va bene così. */
@@ -247,35 +397,37 @@ class Lessico(
     /**
      * Fino a [quante] correzioni, dalla più probabile. Solo la prima può essere [Correzione.sicura].
      */
-    fun correzioni(scritta: String, quante: Int = 2): List<Correzione> {
-        if (scritta == cacheChiave && versione == cacheVersione && cacheRisultato.size >= quante) {
+    fun correzioni(scritta: String, quante: Int = 2, prec: String? = null): List<Correzione> {
+        val chiaveCache = if (prec == null) scritta else "$prec $scritta"
+        if (chiaveCache == cacheChiave && versione == cacheVersione && cacheRisultato.size >= quante) {
             return cacheRisultato.take(quante)
         }
-        val risultato = calcolaCorrezioni(scritta, quante)
-        cacheChiave = scritta
+        val precNorm = prec?.lowercase(locale)?.replace('’', '\'')
+        val risultato = calcolaCorrezioni(scritta, quante, precNorm)
+        cacheChiave = chiaveCache
         cacheVersione = versione
         cacheRisultato = risultato
         return risultato
     }
 
-    private fun calcolaCorrezioni(scritta: String, quante: Int): List<Correzione> {
+    private fun calcolaCorrezioni(scritta: String, quante: Int, prec: String?): List<Correzione> {
         val w = scritta.lowercase(locale).replace('’', '\'')
         if (!eParola(w) || indice.isEmpty()) return emptyList()
         // Maiuscole in mezzo alla parola (iPhone, McDonald): è un nome scritto apposta così
         val tuttoMaiuscolo = scritta.filter { it.isLetter() }.all { it.isUpperCase() }
         if (!tuttoMaiuscolo && scritta.drop(1).any { it.isUpperCase() }) return emptyList()
 
-        correggiAccenti(scritta)?.let { return listOf(Correzione(it, true)) }
+        correggiAccenti(scritta, prec)?.let { return listOf(Correzione(it, true)) }
         if (conosciuta(w)) return emptyList()
-        return refusi(scritta, w, quante)
+        return refusi(scritta, w, quante, prec)
     }
 
     // ---------- Errori di battitura ----------
 
-    private fun refusi(scritta: String, w: String, quante: Int): List<Correzione> {
+    private fun refusi(scritta: String, w: String, quante: Int, prec: String?): List<Correzione> {
         val chiave = normalizza(w, locale)
         val p = parametri
-        val migliori = candidati(chiave, maxOf(quante, CANDIDATI), p.penalita)
+        val migliori = candidati(chiave, maxOf(quante, CANDIDATI), p.penalita, prec)
         val primo = migliori.firstOrNull() ?: return emptyList()
         // Probabilità della prima proposta contro le altre e contro "parola vera che non conosco"
         var somma = exp(p.lnSconosciuta + punteggioSconosciuta(w) - primo.punti)
@@ -290,7 +442,7 @@ class Lessico(
     private fun punteggioSconosciuta(w: String) = lnTotale + modello.logProb(w)
 
     /** Le parole del dizionario vicine a [chiave], dalla più probabile; punti = ln frequenza − penalità × costo. */
-    private fun candidati(chiave: String, tenere: Int, penalita: Double): List<Candidato> {
+    private fun candidati(chiave: String, tenere: Int, penalita: Double, prec: String? = null): List<Candidato> {
         if ('\'' in chiave) return emptyList()
         val n = chiave.length
         val limite = when {
@@ -318,7 +470,7 @@ class Lessico(
                 if (!conosciuta(v.parola)) continue
                 val c = costo(chiave, b, limite)
                 if (c > limite) continue
-                val punti = punteggio(v.parola) / 100.0 - penalita * c
+                val punti = (punteggio(v.parola) + bonusCoppia(prec, v.parola)) / 100.0 - penalita * c
                 var pos = migliori.size
                 while (pos > 0 && migliori[pos - 1].punti < punti) pos--
                 if (pos < tenere) {

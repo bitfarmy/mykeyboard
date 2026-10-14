@@ -39,6 +39,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
     private var campoDiTesto = true
     private var campoPassword = false
     private var suggerimentiParole = true  // suggerimenti e correzioni ammessi in questo campo
+    private var correzioneAmmessa = true   // correzione automatica ammessa (non nei campi URI e senza suggerimenti)
     private var puoImparare = true         // niente apprendimento in password e modalità incognito
     private var ultimaCorrezione: Correzione? = null
     private var spazioAutomatico = false
@@ -50,6 +51,8 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         val PAROLA_FINALE = Regex("\\p{L}+$")
         /** Parola con apostrofo in fondo al testo: c', c'e, po', l'al */
         val PAROLA_CON_APOSTROFO = Regex("\\p{L}+(?:['’]\\p{L}*)+$")
+        /** La parola prima di quella in corso, separata da un solo spazio: ne fa il contesto. */
+        val PAROLA_PRECEDENTE = Regex("(\\p{L}+(?:['’]\\p{L}+)*) $")
         val TOKEN_FINALE = Regex("\\S+$")
         const val PUNTEGGIATURA = ".,;:!?"
     }
@@ -150,8 +153,15 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         val nienteSuggerimenti = (info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
         val incognito = (info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
 
-        suggerimentiParole = campoDiTesto && !campoPassword && !campoTecnico && !nienteSuggerimenti
-        puoImparare = suggerimentiParole && !incognito && !campoPersonale
+        // La barra dei suggerimenti vale anche nelle ricerche e nei campi che chiedono "niente suggerimenti"
+        // (la ricerca di Chrome è URI + NO_SUGGESTIONS); lì però non si corregge da soli e non si impara.
+        val campoEmail = campoDiTesto && (
+            variante == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
+                variante == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS
+            )
+        suggerimentiParole = campoDiTesto && !campoPassword && !campoEmail
+        correzioneAmmessa = suggerimentiParole && !campoTecnico && !nienteSuggerimenti
+        puoImparare = correzioneAmmessa && !incognito && !campoPersonale
 
         pagina = when (classe) {
             InputType.TYPE_CLASS_NUMBER, InputType.TYPE_CLASS_PHONE, InputType.TYPE_CLASS_DATETIME -> Pagina.SIMBOLI
@@ -333,7 +343,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
 
     /** Corregge (se serve) e impara la parola appena prima del cursore. */
     private fun correggiParolaCorrente(ic: InputConnection) {
-        if (!suggerimentiParole) return
+        if (!correzioneAmmessa) return
         val prima = ic.getTextBeforeCursor(48, 0)?.toString() ?: return
         val token = TOKEN_FINALE.find(prima)?.value ?: return
         if (scorciatoie.esatta(token) != null) return // è una sigla: non toccarla
@@ -359,7 +369,8 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         // Solo le correzioni sicure si applicano da sole; mai sui nomi propri a metà frase
         // né sulle parole di cui hai appena annullato la correzione
         val rifiutata = rifiutata(parola)
-        val proposta = dizionario.correzioni(parola, 1).firstOrNull()
+        val prec = parolaPrima(prima, parola)
+        val proposta = dizionario.correzioni(parola, 1, prec).firstOrNull()
         val corretta = if (prefs.autocorrezione && !rifiutata && !nomeProprio(prima, parola)) {
             proposta?.takeIf { it.sicura }?.testo
         } else {
@@ -377,7 +388,11 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
             // tuo). Un refuso non corretto non diventa mai "parola tua": per insegnarla servono due ⌫.
             dizionario.impara(parola)
         }
+        if (puoImparare && prec != null) dizionario.imparaCoppia(prec, corretta ?: parola)
     }
+
+    private fun parolaPrima(testoPrima: String, inCorso: String): String? =
+        PAROLA_PRECEDENTE.find(testoPrima.dropLast(inCorso.length))?.groupValues?.get(1)
 
     private fun rifiutata(parola: String) = parola.lowercase(lingua.locale) in rifiutate
 
@@ -423,15 +438,16 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
             }
             val parola = PAROLA_FINALE.find(prima)?.value
             val conApostrofo = PAROLA_CON_APOSTROFO.find(prima)?.value
+            val prec = parolaPrima(prima, conApostrofo ?: parola ?: "")
             if (suggerimentiParole && prefs.suggerimenti && (parola != null || conApostrofo != null)) {
                 val sigla = scorciatoie.esatta(token) != null
                 // Correzioni: prima la parola intera con apostrofo (c'e → c'è), poi l'ultima parola.
                 // In evidenza solo quella che lo spazio applicherà; le altre sono semplici proposte.
-                val intera = if (conApostrofo != null && !sigla && !rifiutata(conApostrofo)) dizionario.correggiAccenti(conApostrofo) else null
-                val proposte = if (intera == null && parola != null && !sigla) dizionario.correzioni(parola, 2) else emptyList()
-                val automatica = prefs.autocorrezione && parola != null && !nomeProprio(prima, parola) && !rifiutata(parola)
+                val intera = if (conApostrofo != null && !sigla && !rifiutata(conApostrofo)) dizionario.correggiAccenti(conApostrofo, prec) else null
+                val proposte = if (intera == null && parola != null && !sigla) dizionario.correzioni(parola, 2, prec) else emptyList()
+                val automatica = prefs.autocorrezione && correzioneAmmessa && parola != null && !nomeProprio(prima, parola) && !rifiutata(parola)
                 if (intera != null && conApostrofo != null) {
-                    val tipo = if (prefs.autocorrezione) TipoSuggerimento.CORREZIONE else TipoSuggerimento.PAROLA
+                    val tipo = if (prefs.autocorrezione && correzioneAmmessa) TipoSuggerimento.CORREZIONE else TipoSuggerimento.PAROLA
                     lista.add(Suggerimento(intera, conApostrofo, tipo))
                 }
                 val prima0 = proposte.firstOrNull()
@@ -440,12 +456,12 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
                 }
                 // Completamenti: forme con apostrofo (c' → c'è), poi la parola dopo l'apostrofo (l'al → altro)
                 if (conApostrofo != null) {
-                    dizionario.completamenti(conApostrofo, 3).forEach {
+                    dizionario.completamenti(conApostrofo, 3, prec).forEach {
                         lista.add(Suggerimento(it, conApostrofo, TipoSuggerimento.PAROLA))
                     }
                 }
                 if (parola != null) {
-                    dizionario.completamenti(parola, 3).forEach {
+                    dizionario.completamenti(parola, 3, prec).forEach {
                         lista.add(Suggerimento(it, parola, TipoSuggerimento.PAROLA))
                     }
                     // Correzioni incerte: dopo i primi completamenti (forse stai ancora scrivendo la parola),
@@ -457,6 +473,12 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
                 }
             }
         }
+        // Dopo "parola␣" senza altro scritto: le parole che di solito seguono (solo da quello che hai già scritto tu)
+        if (token.isEmpty() && suggerimentiParole && prefs.suggerimenti) {
+            PAROLA_PRECEDENTE.find(prima)?.groupValues?.get(1)?.let { p ->
+                dizionario.successive(p, 3).forEach { lista.add(Suggerimento(it, "", TipoSuggerimento.PAROLA)) }
+            }
+        }
         // Due suggerimenti che porterebbero allo stesso testo finale contano come uno solo
         b.mostra(lista.distinctBy { prima.dropLast(it.daSostituire.length) + it.testo }.take(3))
     }
@@ -465,6 +487,7 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         val ic = currentInputConnection ?: return
         ultimaCorrezione = null
         val prima = ic.getTextBeforeCursor(s.daSostituire.length, 0)?.toString()
+        val contesto = ic.getTextBeforeCursor(48, 0)?.toString() ?: ""
         val finale = if (s.testo.endsWith("\n")) s.testo else s.testo + " "
 
         ic.beginBatchEdit()
@@ -473,7 +496,10 @@ class TastieraService : InputMethodService(), TastieraView.Ascoltatore {
         ic.endBatchEdit()
 
         spazioAutomatico = finale.endsWith(" ")
-        if (s.tipo != TipoSuggerimento.SCORCIATOIA && puoImparare) dizionario.impara(s.testo)
+        if (s.tipo != TipoSuggerimento.SCORCIATOIA && puoImparare) {
+            dizionario.impara(s.testo)
+            parolaPrima(contesto, s.daSostituire)?.let { dizionario.imparaCoppia(it, s.testo) }
+        }
         if (shift == StatoShift.ACCESO) {
             shift = StatoShift.SPENTO
             aggiornaTastiera()

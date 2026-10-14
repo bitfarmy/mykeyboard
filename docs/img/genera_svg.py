@@ -114,7 +114,7 @@ def copertina():
 
     # Finestra principale
     x0, y0, w0, h0 = 110, 18, 720, 376
-    o.append(finestra(x0, y0, w0, h0, t("⌨  La mia tastiera 2.4.0", "⌨  My Keyboard 2.4.0")))
+    o.append(finestra(x0, y0, w0, h0, t("⌨  La mia tastiera 2.5.0", "⌨  My Keyboard 2.5.0")))
     menu = t(["File", "Modifica", "Visualizza", "Lingue", "?"], ["File", "Edit", "View", "Languages", "Help"])
     mx = x0 + 10
     for m in menu:
@@ -261,7 +261,7 @@ def copertina():
              '<rect y="7" width="6" height="6" fill="#0000ff"/><rect x="7" y="7" width="6" height="6" fill="#ffd000"/></g>')
     o.append(testo(46, H - 10, t("Avvio", "Start"), 12, NERO, "bold", "middle"))
     o.append(rilievo(84, H - 27, 190, 24, CHIARO, infossato=True))
-    o.append(testo(94, H - 10, t("⌨ La mia tastiera 2.4.0", "⌨ My Keyboard 2.4.0"), 12, NERO, "bold"))
+    o.append(testo(94, H - 10, t("⌨ La mia tastiera 2.5.0", "⌨ My Keyboard 2.5.0"), 12, NERO, "bold"))
     o.append(rilievo(W - 84, H - 27, 80, 24, GRIGIO, infossato=True))
     o.append(testo(W - 44, H - 10, "09:35", 12, NERO, anchor="middle"))
     o.append(testo(W - 72, H - 10, "🔇", 11))
